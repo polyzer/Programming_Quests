@@ -4,87 +4,113 @@
 #include <stdlib.h>
 #include <string.h>
 
-unsigned int stringsCount, maxStringSize;
-char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIGKLMNOPQRSTUVWXYZ0123456789";
-
-struct DoubleLinkList{
+struct ListElement{
 	char *str;
-	struct DoubleLinkList *next;
-	struct DoubleLinkList *prev;
+	struct ListElement *next;
+	struct ListElement *prev;
 };
-void GenerateDoubleLinkStrings
-(
-	unsigned int stringsCount,
-	unsigned int maxStringSize
-);
-void sortListStrings (struct DoubleLinkList *list);	
+void sortListStrings (struct ListElement *list);	
 int strComparison(char *str1, char *str2);
-struct DoubleLinkList genListElement(int stringLength);
+void DoubleLinkListFunc();
+void listFree(struct ListElement *list);
+bool fillList(struct ListElement *element, const int count, int deep, const int len);
+struct ListElement *createListElement(struct ListElement *parent, int len);
+char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIGKLMNOPQRSTUVWXYZ0123456789";
 
 int main(int argc, char **argv) {
 	setlocale(LC_ALL, "Russian");
-	srand(clock());
+	DoubleLinkListFunc();
+	return 0;
+}
+
+void DoubleLinkListFunc() 
+{
+	srand(clock());	
+	int stringsCount, maxStringSize;
+	struct ListElement *list = NULL;
+	struct ListElement *cur_elem = NULL;
 	printf("Создание списков.\n");
 	printf("Введите количество строк:");
 	scanf("%i", &stringsCount);
 	printf("Введите длину строк:");
-	scanf("%i", &maxStringSize);
-	GenerateDoubleLinkStrings(stringsCount, maxStringSize);
-	return 0;
-}
-
-void GenerateDoubleLinkStrings(
-	 unsigned int stringsCount,
-	 unsigned int maxStringSize
-	 )
-{
-		struct DoubleLinkList *list = (struct DoubleLinkList *) malloc(stringsCount * sizeof(struct DoubleLinkList));
-		struct DoubleLinkList *cur_elem = list;
-
-		int i;
-		for (i = 0; i < stringsCount; i++)
-			list[i] = genListElement(maxStringSize);
-		
-		for (i = 0; i < stringsCount; i++) 
-		{
-			if(i == 0) {
-				list[i].next = &(list[i + 1]);
-				list[i].prev = NULL;
-			}
-			if (i != 0 && i != (stringsCount - 1)) {
-				list[i].prev = &(list[i - 1]);
-				list[i].next = &(list[i + 1]);
-			}
-			if (i == (stringsCount - 1)) {
-				list[i].prev = &(list[i - 1]);
-				list[i].next = NULL;
-			}
-		}
-		//ВЫЗВАТЬ ФУНКЦИЮ СОРТИРОВКИ
-		sortListStrings(list);    
-
-		while (cur_elem->next != NULL) {
-				printf("%s\n", cur_elem->str);
-				cur_elem = cur_elem->next;
-		}
-		system("pause");
-		
-		//ОСВОБОЖДЕНИЕ УКАЗАТЕЛЕЙ!!!  
-		cur_elem = list;
-		while (cur_elem->next != NULL) {
-			free(cur_elem->str);
-			if (cur_elem->next->next == NULL)
-				free(cur_elem->next->str);
+	scanf("%i", &maxStringSize);	
+	list = createListElement(NULL, maxStringSize);
+	fillList(list, stringsCount - 1, 1, maxStringSize);
+	//ВЫЗВАТЬ ФУНКЦИЮ СОРТИРОВКИ
+	//sortListStrings(list);    
+	cur_elem = list;
+	while (cur_elem->next != NULL) {
+			printf("%s\n", cur_elem->str);
 			cur_elem = cur_elem->next;
-		}
-		free(list);
-		cur_elem = NULL;  
-		free(cur_elem);
+	}
+	cur_elem = NULL;
+	system("pause");
+	//ОСВОБОЖДЕНИЕ УКАЗАТЕЛЕЙ!!!  
+	listFree(list);
 }
 
-void sortListStrings(struct DoubleLinkList *list) 
+
+void listFree(struct ListElement *list) 
 {
-	struct DoubleLinkList *cur_elem;
+	struct ListElement *cur_elem = list;
+	list = NULL;
+	while (true) {
+		free(cur_elem->str);
+		free(cur_elem->prev);
+		cur_elem->prev = NULL;
+		if (cur_elem->next == NULL)
+			return;
+		cur_elem = cur_elem->next;
+	}		
+	free(cur_elem);
+	cur_elem = NULL;
+}
+bool fillList(struct ListElement *element, const int count, int deep, const int len) {
+	int p;
+	unsigned int i;
+	struct ListElement *cur_elem = element;
+	int str_len = len;
+	int alphlen = strlen(alphabet);
+	if (str_len == 1)
+		str_len++;
+	for (p = 0; p < count; p++) {
+		cur_elem->next = (struct ListElement *) malloc(sizeof(struct ListElement));
+		cur_elem->next->next = NULL;
+		cur_elem->next->prev = cur_elem;
+		str_len = 1 + rand()%(len - 1);
+		cur_elem->next->str = (char *) malloc((str_len + 1) * sizeof(char));
+		for(i = 0; i < str_len; i++) 
+		{
+			cur_elem->next->str[i] = alphabet[rand()%(alphlen)];
+		}
+		cur_elem->next->str[str_len] = '\0';
+		cur_elem = cur_elem->next;
+	}
+	cur_elem = NULL;
+	return true;
+}
+
+struct ListElement *createListElement(struct ListElement *parent, const int len){
+		unsigned int i;
+		int str_len = len;
+		struct ListElement *element = (struct ListElement *) malloc(sizeof(struct ListElement));
+		if (str_len == 1)
+			str_len++;
+		element->next = NULL;
+		element->prev = parent;
+		str_len = 1 + rand()%(str_len - 1);
+		element->str = (char *) malloc((str_len + 1) * sizeof(char));
+		for(i = 0; i < str_len; i++) 
+		{
+			element->str[i] = alphabet[rand()%(strlen(alphabet))];
+		}
+		element->str[str_len] = '\0';
+		return element;
+}
+
+void sortListStrings(struct ListElement *list) 
+{
+	struct ListElement *cur_elem;
 	char *buf_char = NULL;
 	int work = 1;
 	int i;
@@ -125,51 +151,5 @@ int strComparison(char *str1, char *str2) {
 		}
 	}
 	return 0;
-	
 }
 
-
-struct DoubleLinkList genListElement(int str_len) {
-	unsigned int i;
-	struct DoubleLinkList listElement;
-	if (str_len == 1)
-		str_len++;
-	str_len = 1 + rand()%(str_len - 1);
-	listElement.str = (char *) malloc((str_len + 1) * sizeof(char));
-	for(i = 0; i < str_len; i++) {
-		listElement.str[i] = alphabet[rand()%(strlen(alphabet))];
-	}
-	listElement.str[str_len] = '\0';
-	return listElement;
-}
-
-
-
-/*
-void sortListStrings(struct DoubleLinkList *list) 
-{
-	struct DoubleLinkList *cur_elem, *next_elem;
-	int work = 1;
-	int i;
-	while (work) {
-		cur_elem = list;
-		next_elem = cur_elem.next;
-		
-		while(next_elem.next != NULL) {
-			if (strComparison(elem.str, elem.next.str) < 0){
-				next_elem.prev = cur_elem.prev; //Меняем предыд у следующего элемента на текущий предыдущий
-				cur_elem.next = next_elem.next; //Меняем у текущего элемента следующий на следующий у следующего
-				cur_elem.prev = next_elem; //Меняем предыдущий у текущего элемента на следующий
-				next_elem.next.prev = cur_elem; // Меняем предыдущий у следующего у следующего на текущий
-				next_elem.next = cur_elem; // меняем следующий у бывшего следующего на текущий
-				next_elem = cur_elem.next;
-				break;
-			}
-		}
-		
-	}
-	
-	cur_elem = NULL;
-	next_elem = NULL;
-}
-*/

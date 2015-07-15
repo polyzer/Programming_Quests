@@ -263,7 +263,6 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
   case 4:
 	  tempLine = (BYTE *) malloc(bInfo.biWidth * (bInfo.biBitCount / 8) * sizeof(BYTE));
 	  Lines = (BYTE *) malloc(bInfo.biHeight * bInfo.biWidth * (bInfo.biBitCount / 8) * sizeof(BYTE));
-
 	  for (i = 0; i < bInfo.biHeight; i++) {
 		  GetDIBits(*memBit, *hBMP, i, 1, tempLine,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
 		  k = i * (bInfo.biBitCount / 8);//shift вначале = 0	
@@ -281,12 +280,13 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
 	  BitMap->bmHeight = bInfo.biHeight;
 	  BitMap->bmWidth = bInfo.biWidth;
 	  BitMap->bmWidthBytes = BitMap->bmWidth;
-	  //free(BitMap->bmBits);
 	  BitMap->bmBits = (void *) Lines;
 	  *hBMP = CreateBitmapIndirect(BitMap);
-	  //SetDIBits(*memBit, *hBMP, 0, BitMap->bmHeight, BitMap->bmBits,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+	  SetDIBits(*memBit, *hBMP, 0, BitMap->bmHeight, BitMap->bmBits,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
 	  SetDIBitsToDevice(*memBit, 0, 0, bInfo.biWidth, bInfo.biHeight,0, 0,0,  bInfo.biHeight, BitMap->bmBits, (LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
-	Lines = NULL;
+	  *hBMP = CreateCompatibleBitmap(*memBit, BitMap->bmWidth, BitMap->bmHeight);
+	  SetDIBits(*memBit, *hBMP, 0, BitMap->bmHeight, BitMap->bmBits,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+	  Lines = NULL;
 	free(tempLine);
   break;
   case 5:

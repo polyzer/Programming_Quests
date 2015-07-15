@@ -4,18 +4,22 @@
 //Программа проверяет корректность ввода + может отрицательные числа.
 //45 "-", 48-57 "0...9"
 int myatoi(const char *str);
+char *get_hex(int num);
+char *get_dec(int num);
 
 int main(int argc, char **argv) {
 	char str[] = "127684";
 	//char hex_str[] = "0x1923";
-	printf("%d", myatoi(str));
+	//printf("%d", myatoi(str));
+	print_hex(0x28392738);
 	system("pause");
 	return 0;
 }
 
 int myatoi(const char *str) 
 {
-	int len, answer = 0, left = 0;
+	int len, answer = 0, left = 0, i =0, m = 0;
+;
 	if (str[0] == 45)
 		len = 1;
 	else
@@ -25,7 +29,6 @@ int myatoi(const char *str)
 		if (str[len] == '\0') {
 			break;
 		}	
-		int m;
 		for (m = 48; m <= 57; m++) {
 			if (str[len] == m) {
 				break;
@@ -38,7 +41,6 @@ int myatoi(const char *str)
 	if (len > 10) {
 		return -2;
 	}
-	int i;
 	for (i = (len - 1); i >= 0; i--) {
 		int j;
 		int number = 0;
@@ -65,7 +67,18 @@ int myatoi(const char *str)
 
 	return answer;
 }
-void print_hex(unsigned int dec_num) 
+char *get_hex(unsigned int num) 
 {
-	
+		
+}
+char *get_dec(unsigned int num) 
+{
+	int i, comp_num = 9, mul = 9;
+	for(i = 1;;i++) 
+	{
+		if(num <= comp_num)
+			break;
+		comp_num += comp_num * 10 + 9;
+
+	}
 }

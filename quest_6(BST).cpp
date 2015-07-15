@@ -20,13 +20,50 @@ bool INSERT(const char *key, const char *value);
 void REMOVE(const char *key);
 bool rInsertion(struct Node *node, const char *key, const char *value);
 struct Node *rFind(struct Node *node, const char *key);
-
-struct Node *head = NULL;
+struct Node *head = (struct Node *) malloc(sizeof(struct Node)); //точка входа в дерево, главный элемент
 
 
 int main(int argc, char **argv) {
 
 	return 0;
+}
+
+void BSTFunc()
+{
+	int menu = 0;
+	char *key, *value;
+	PrintMenu();
+	while(scanf("%d", menu) != EOF){
+		if (menu == 1){
+			printf("Введите ключ и значение:");
+			scanf("%s%s", key, value);
+			INSERT(key, value);
+		}
+		if (menu == 2){
+			printf("Введите ключа для поиска:");
+			scanf("%s", key);
+			FIND(key);
+		}
+		if (menu == 3){
+			printf("Введите ключ для удаления:");
+			scanf("%s", key);
+			REMOVE(key);
+		}
+		if (menu == 4){
+			printf("Очистка дерева.");
+			//удаление
+			//освобождение key, value.
+			exit(0);
+		}
+		PrintMenu();
+	}
+
+}
+
+void PrintMenu()
+{
+	printf("***********Двоичное дерево поиска.**********");
+	printf("1. Добавить элемент\n2. Найти значение по ключу\n3. Удалить элемент по заданному ключу\n 4. Выход");
 }
 
 struct Node *FIND (const char *key)
@@ -67,6 +104,10 @@ struct Node *rFind(struct Node *node, const char *key)
 //вставка
 bool INSERT(const char *key, const char *value)
 {
+	if (head == NULL) {
+		head = createNode(key, value);
+		return true;
+	}
 	rInsertion(head, key, value);
 }
 
@@ -108,7 +149,11 @@ bool rInsertion(struct Node *node, const char *key, const char *value) {
 struct Node *createNode(const char *key, const char *value)
 {
 	struct Node *newNode = (struct Node *) malloc(sizeof(struct Node));
+	newNode->data.key = (char *) malloc((strlen(key) + 1) * sizeof(char));
+	newNode->data.value = (char *) malloc((strlen(value) + 1) * sizeof(char));
 	strcpy(newNode->data.key, key);
 	strcpy(newNode->data.value, value);
+	newNode->left = NULL;
+	newNode->right = NULL;
 	return newNode;
 }

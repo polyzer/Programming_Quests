@@ -177,11 +177,10 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
   //3 - to black-white image
   //4 - turning 90
   //5 - paste 2 images together
-  int temp = 0, shift = 0,  i, j, k, incr = 10, decr = 10, Y = 0, U = 0, V = 0, R = 0, G = 0, B = 0;
-  BYTE *tempLine, *tempScanLine1;
+  int temp = 0, shift = 0,  i = 0, j = 0, k = 0, incr = 10, decr = 10,R = 0, G = 0, B = 0;
+  BYTE *tempLine, *tempScanLine1, *Lines;
   struct tagBITMAPINFOHEADER bInfo;
   {
-	  bInfo.biSize = 
 	  bInfo.biSize = sizeof(bInfo);
 	  bInfo.biWidth = BitMap->bmWidth;  
 	  bInfo.biHeight = BitMap->bmHeight; 
@@ -198,12 +197,6 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
 		GetDIBits(*memBit, *hBMP, i, 1, tempScanLine1,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
 		for(j = 0; j < bInfo.biWidth * 3; j+= 3) 
 		{
-//			Y = (0.257 * (tempScanLine1[j+2])) + (0.504 * (tempScanLine1[j+1])) + (0.098 * (tempScanLine1[j])) + 17; 
-//			V = (0.439 * (tempScanLine1[j+2])) - (0.368 * (tempScanLine1[j+1])) - (0.071 * (tempScanLine1[j])) + 128;
-//			U = -(0.148 * (tempScanLine1[j+2])) - (0.291 * tempScanLine1[j+1]) + (0.439 * tempScanLine1[j]) + 128;
-//			B = (int) 1.164*(Y - 16) + 2.018*(U - 128);
-//			G = (int) 1.164*(Y - 16) - 0.813*(V - 128) - 0.391*(U - 128);
-//			R = (int) 1.164*(Y - 16) + 1.596*(V - 128);
 			if(tempScanLine1[j] < (255 - incr) &&
 			   tempScanLine1[j + 1] < (255 - incr) &&
 			   tempScanLine1[j + 2] < (255 - incr))
@@ -215,19 +208,7 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
 				if (tempScanLine1[j + 2] < (255 - incr))
 					tempScanLine1[j + 2] += incr;
 			}
-/*			if(B <= 255)
-				tempScanLine1[j] = B;
-			else
-				tempScanLine1[j] = 255;
-			if (G <= 255)
-				tempScanLine1[j + 1] = G;
-			else
-				tempScanLine1[j + 1] = 255;
-			if (R <= 255)
-				tempScanLine1[j + 2] = R;
-			else
-				tempScanLine1[j + 2] = 255;
-*/		}			
+		}			
 		SetDIBits(*memBit, *hBMP, i, 1, tempScanLine1, (LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
    }
 	free (tempScanLine1);
@@ -239,37 +220,18 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
 		GetDIBits(*memBit, *hBMP, i, 1, tempScanLine1,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
 		for(j = 0; j < bInfo.biWidth * 3; j+= 3) 
 		{
-//			Y = (0.257 * (tempScanLine1[j+2])) + (0.504 * (tempScanLine1[j+1])) + (0.098 * (tempScanLine1[j])) + 15; // 16 - 1!!!!!!! 
-//			V = (0.439 * (tempScanLine1[j+2])) - (0.368 * (tempScanLine1[j+1])) - (0.071 * (tempScanLine1[j])) + 128;
-//			U = -(0.148 * (tempScanLine1[j+2])) - (0.291 * tempScanLine1[j+1]) + (0.439 * tempScanLine1[j]) + 128;
-//			B = (int) 1.164*(Y - 16) + 2.018*(U - 128);
-//			G = (int) 1.164*(Y - 16) - 0.813*(V - 128) - 0.391*(U - 128);
-//			R = (int) 1.164*(Y - 16) + 1.596*(V - 128);
-			if(tempScanLine1[j] > (0 - incr) &&
-			   tempScanLine1[j + 1] > (0 - incr) &&
-			   tempScanLine1[j + 2] > (0 - incr))
+			if(tempScanLine1[j] > (0 + incr) &&
+			   tempScanLine1[j + 1] > (0 + incr) &&
+			   tempScanLine1[j + 2] > (0 + incr))
 			{
-				if (tempScanLine1[j] > (0 - incr))
+				if (tempScanLine1[j] > (0 + incr))
 					tempScanLine1[j] -= incr;
-				if (tempScanLine1[j + 1] > (0 - incr))
+				if (tempScanLine1[j + 1] > (0 + incr))
 					tempScanLine1[j + 1] -= incr;
-				if (tempScanLine1[j + 2] > (0 - incr))
+				if (tempScanLine1[j + 2] > (0 + incr))
 					tempScanLine1[j + 2] -= incr;
 			}
-
-/*			if(B > 0)
-				tempScanLine1[j] = B;
-			else
-				tempScanLine1[j] = 0;
-			if (G > 0)
-				tempScanLine1[j + 1] = G;
-			else
-				tempScanLine1[j + 1] = 0;
-			if (R > 0)
-				tempScanLine1[j + 2] = R;
-			else
-				tempScanLine1[j + 2] = 0;
-*/		}			
+		}			
 		SetDIBits(*memBit, *hBMP, i, 1, tempScanLine1, (LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
    }
 	free (tempScanLine1); 
@@ -299,30 +261,33 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
 	free (tempScanLine1);
   break;
   case 4:
-	  BYTE *tempLine = (BYTE *) malloc(bInfo.biWidth * (bInfo.biBitCount / 8) * sizeof(BYTE));
-	  BYTE *Lines = (BYTE *) malloc(bInfo.biHeight * bInfo.biWidth * (bInfo.biBitCount / 8) * sizeof(BYTE));
+	  tempLine = (BYTE *) malloc(bInfo.biWidth * (bInfo.biBitCount / 8) * sizeof(BYTE));
+	  Lines = (BYTE *) malloc(bInfo.biHeight * bInfo.biWidth * (bInfo.biBitCount / 8) * sizeof(BYTE));
 
-	  for (i = 0; i < bInfo.biWidth; i++) {
+	  for (i = 0; i < bInfo.biHeight; i++) {
 		  GetDIBits(*memBit, *hBMP, i, 1, tempLine,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+		  k = i * (bInfo.biBitCount / 8);//shift вначале = 0	
 		  for(j = (bInfo.biWidth - 1) * (bInfo.biBitCount / 8); j >= 0; j-= 3) {
-			k = abs(j - (bInfo.biWidth - 1)* (bInfo.biBitCount / 8)) + shift * (bInfo.biBitCount / 8);//shift вначале = 0
 			Lines[k] = tempLine[j];
 			Lines[k + 1] = tempLine[j + 1];
 			Lines[k + 2] = tempLine[j + 2];
+			k += bInfo.biHeight * (bInfo.biBitCount / 8);			
 		  } 
+		shift = 0;  
 	  }
 	  temp = bInfo.biWidth;//переставляем ширину и длину местами
 	  bInfo.biWidth = bInfo.biHeight;
 	  bInfo.biHeight = temp;
 	  BitMap->bmHeight = bInfo.biHeight;
 	  BitMap->bmWidth = bInfo.biWidth;
-	  free(BitMap->bmBits);
-	  BitMap->bmBits = Lines;
-	  *hBMP = CreateBitmapIndirect(BitMap); 
-	  SetDIBits(*memBit, *hBMP, 0, bInfo.biHeight, );
+	  BitMap->bmWidthBytes = BitMap->bmWidth;
+	  //free(BitMap->bmBits);
+	  BitMap->bmBits = (void *) Lines;
+	  *hBMP = CreateBitmapIndirect(BitMap);
+	  //SetDIBits(*memBit, *hBMP, 0, BitMap->bmHeight, BitMap->bmBits,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+	  SetDIBitsToDevice(*memBit, 0, 0, bInfo.biWidth, bInfo.biHeight,0, 0,0,  bInfo.biHeight, BitMap->bmBits, (LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
 	Lines = NULL;
 	free(tempLine);
-
   break;
   case 5:
 	break;  

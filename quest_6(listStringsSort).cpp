@@ -11,9 +11,16 @@ struct ListElement{
 };
 void sortListStrings (struct ListElement *list);	
 int strComparison(char *str1, char *str2);
+char *genString(const int len);
 void DoubleLinkListFunc();
 void listFree(struct ListElement *list);
-bool fillList(struct ListElement *element, const int count, int deep, const int len);
+
+void InsertStringTailList(struct ListElement *list, char *str);
+struct ListElement *AllocAndInitListElement(char* str);
+void InsertElementTailList(struct ListElement *list, struct ListElement *newelem);
+void setPrevElementTailList(struct ListElement *list);
+
+int fillList(struct ListElement *list, const int count, const int len);
 struct ListElement *createListElement(struct ListElement *parent, int len);
 char alphabet[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIGKLMNOPQRSTUVWXYZ0123456789";
 
@@ -25,17 +32,17 @@ int main(int argc, char **argv) {
 
 void DoubleLinkListFunc() 
 {
-	srand(clock());	
 	int stringsCount, maxStringSize;
 	struct ListElement *list = NULL;
 	struct ListElement *cur_elem = NULL;
+	srand(clock());	
 	printf("Ñîçäàíèå ñïèñêîâ.\n");
 	printf("Ââåäèòå êîëè÷åñòâî ñòðîê:");
 	scanf("%i", &stringsCount);
 	printf("Ââåäèòå äëèíó ñòðîê:");
 	scanf("%i", &maxStringSize);	
-	list = createListElement(NULL, maxStringSize);
-	fillList(list, stringsCount - 1, 1, maxStringSize);
+	list = AllocAndInitListElement(genString(maxStringSize));
+	fillList(list, stringsCount, maxStringSize);
 	//ÂÛÇÂÀÒÜ ÔÓÍÊÖÈÞ ÑÎÐÒÈÐÎÂÊÈ
 	//sortListStrings(list);    
 	cur_elem = list;
@@ -48,13 +55,50 @@ void DoubleLinkListFunc()
 	//ÎÑÂÎÁÎÆÄÅÍÈÅ ÓÊÀÇÀÒÅËÅÉ!!!  
 	listFree(list);
 }
+struct ListElement *AllocAndInitListElement(char* str)
+{
+	struct ListElement *element = (struct ListElement *) malloc(sizeof(struct ListElement));
+	int strlength = strlen(str);
+	element->next = NULL;
+	element->prev = NULL;
+	element->str = str;
+	return element;
+}
+void InsertElementTailList(struct ListElement *list, struct ListElement *newelem)
+{
+	struct ListElement *cur_elem = list;
+	while (cur_elem->next != NULL) {
+			cur_elem = cur_elem->next;
+	}
+	cur_elem->next = newelem;
+	setPrevElementTailList(cur_elem);
+	cur_elem = NULL;
+}
+void setPrevElementTailList(struct ListElement *list)
+{
+	struct ListElement *cur_elem = list;
+	while (cur_elem->next->next != NULL) {
+			cur_elem = cur_elem->next;
+	}
+	cur_elem->next->prev = cur_elem;
+	cur_elem = NULL;
+}
+void InsertStringTailList(struct ListElement *list, char *str)
+{
+	struct ListElement *cur_elem = list;
+	while (cur_elem->next != NULL) {
+			cur_elem = cur_elem->next;
+	}
+	cur_elem->str = str;
+	cur_elem = NULL;
+}
 
 
 void listFree(struct ListElement *list) 
 {
 	struct ListElement *cur_elem = list;
 	list = NULL;
-	while (true) {
+	while (1) {
 		free(cur_elem->str);
 		free(cur_elem->prev);
 		cur_elem->prev = NULL;
@@ -65,47 +109,31 @@ void listFree(struct ListElement *list)
 	free(cur_elem);
 	cur_elem = NULL;
 }
-bool fillList(struct ListElement *element, const int count, int deep, const int len) {
+int fillList(struct ListElement *list, const int count, const int len) {
 	int p;
-	unsigned int i;
-	struct ListElement *cur_elem = element;
+	struct ListElement *element;	
+	for (p = 0; p < count; p++) {
+		InsertElementTailList(list, AllocAndInitListElement(genString(len)));
+		printf("%d\n", p);
+	}
+	return 0;
+}
+char *genString(const int len) 
+{
+	int i;
 	int str_len = len;
 	int alphlen = strlen(alphabet);
+	char *str;
 	if (str_len == 1)
 		str_len++;
-	for (p = 0; p < count; p++) {
-		cur_elem->next = (struct ListElement *) malloc(sizeof(struct ListElement));
-		cur_elem->next->next = NULL;
-		cur_elem->next->prev = cur_elem;
-		str_len = 1 + rand()%(len - 1);
-		cur_elem->next->str = (char *) malloc((str_len + 1) * sizeof(char));
-		for(i = 0; i < str_len; i++) 
+	str_len = 1 + rand()%(len - 1);
+	str = (char *) malloc((str_len + 1) * sizeof(char));
+	for(i = 0; i < str_len; i++) 
 		{
-			cur_elem->next->str[i] = alphabet[rand()%(alphlen)];
+			str[i] = alphabet[rand()%(alphlen)];
 		}
-		cur_elem->next->str[str_len] = '\0';
-		cur_elem = cur_elem->next;
-	}
-	cur_elem = NULL;
-	return true;
-}
-
-struct ListElement *createListElement(struct ListElement *parent, const int len){
-		unsigned int i;
-		int str_len = len;
-		struct ListElement *element = (struct ListElement *) malloc(sizeof(struct ListElement));
-		if (str_len == 1)
-			str_len++;
-		element->next = NULL;
-		element->prev = parent;
-		str_len = 1 + rand()%(str_len - 1);
-		element->str = (char *) malloc((str_len + 1) * sizeof(char));
-		for(i = 0; i < str_len; i++) 
-		{
-			element->str[i] = alphabet[rand()%(strlen(alphabet))];
-		}
-		element->str[str_len] = '\0';
-		return element;
+	str[str_len] = '\0';
+	return str;
 }
 
 void sortListStrings(struct ListElement *list) 

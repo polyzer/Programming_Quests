@@ -9,9 +9,8 @@ char *get_dec(int num);
 
 int main(int argc, char **argv) {
 	char str[] = "127684";
-	char *num = get_dec(0x100);
-		
-	printf("%s", num);
+	char *num = get_hex(0x100);	
+	printf("%s\n", num);
 	system("pause");
 	free(num);
 	return 0;

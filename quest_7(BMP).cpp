@@ -16,6 +16,8 @@ LRESULT CALLBACK WndProc (HWND, UINT, WPARAM, LPARAM) ;
 int BitMapLoadAndSet(HBITMAP *hb, BITMAP *bm2, HDC *memBit2);
 char *openFileDialog();
 void ChangeBMP(HBITMAP *hBMP);
+void pasteBitMapsTogether(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, HBITMAP *hBMP2, BITMAP *BitMap2, HDC *memBit2);
+void getBitMapsFromDevice(HBITMAP *hBMP, BITMAP *BitMap, HBITMAP *hBMP2, BITMAP *BitMap2, HDC *hdc, HDC *memBit, HDC *memBit2);
 
 HINSTANCE hInst;
 TCHAR WinName[] = _T("MainFrame") ;
@@ -95,7 +97,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 lParam)
 {
 	PAINTSTRUCT ps;
-	HDC hdc;
+	static HDC hdc;
 	static int TwoImages = 0;
 	static int caption, menu, border;
 	static HDC memBit, memBit2;
@@ -159,8 +161,12 @@ lParam)
 			InvalidateRect(hWnd, NULL, TRUE);
 		break;
 		case ID_PASTE_TOGETHER:
-			ChangeBMP(&hBitmap, &bm, &memBit, 5);
-			InvalidateRect(hWnd, NULL, TRUE);
+			if (TwoImages > 0){
+				pasteBitMapsTogether(&hBitmap, &bm, &memBit, &hBitmap2, &bm2, &memBit2);
+				//getBitMapsFromDevice(&hBitmap, &bm, &hBitmap2, &bm2, &hdc, &memBit, &memBit2);
+				TwoImages = 0;
+				InvalidateRect(hWnd, NULL, TRUE);
+			}
 		break;
 		case ID_FILE_OPEN:
 
@@ -181,7 +187,6 @@ lParam)
 	break;
 	
 	case WM_PAINT:
-
 		if (TwoImages > 0)
 			if (bm.bmHeight > bm2.bmHeight)
 				MoveWindow(hWnd,100, 50, (bm.bmWidth+2 + bm2.bmWidth) *border, bm.bmHeight + caption
@@ -204,7 +209,6 @@ lParam)
 	case WM_DESTROY: 
 		DeleteDC(memBit);
 		DeleteDC(memBit2);
-
 		PostQuitMessage(0); 
 	break;
 	
@@ -256,6 +260,25 @@ char *openFileDialog(){
 
 }
 
+void getBitMapsFromDevice(HBITMAP *hBMP, BITMAP *BitMap, HBITMAP *hBMP2, BITMAP *BitMap2, HDC *hdc, HDC *memBit, HDC *memBit2)
+{
+	int temp = 0, i = 0, j = 0, k = 0, shift = 0, R = 0, G = 0, B = 0, height = 0, width = 0;
+	if (BitMap->bmHeight > BitMap2->bmHeight){
+		height = BitMap->bmHeight;
+	}
+	else{
+		height = BitMap2->bmHeight;
+	}
+//	BitBlt(*memBit, BitMap->bmWidth, 0, BitMap2->bmWidth,BitMap2->bmHeight, *memBit2, 0, 0, SRCCOPY);
+	//BitBlt(*hdc, BitMap->bmWidth, 0, BitMap2->bmWidth,BitMap2->bmHeight, *memBit2, 0, 0, SRCCOPY);
+   width = BitMap->bmWidth + BitMap2->bmWidth;
+   BitBlt(*memBit, 0, 0, height, width, *hdc, 0, 0, SRCCOPY);
+   *hBMP = CreateCompatibleBitmap(*memBit, width, height);
+//   SelectObject(*memBit, *hBMP);
+   GetObject(*hBMP, sizeof(BITMAP), BitMap);
+ 
+}
+
 
 void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type) 
 {
@@ -265,18 +288,19 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
   //3 - to black-white image
   //4 - turning 90
   //5 - paste 2 images together
-  int temp = 0, shift = 0,  i = 0, j = 0, k = 0, incr = 10, decr = 10,R = 0, G = 0, B = 0;
+  int temp = 0, shift = 0,  i = 0, j = 0, k = 0, incr = 10, decr = 10,R = 0, G = 0, B = 0,  PixelBytesSize = 0;
   BYTE *tempLine, *Lines;
   struct tagBITMAPINFOHEADER bInfo;
   {
 	  bInfo.biSize = sizeof(bInfo);
 	  bInfo.biWidth = BitMap->bmWidth;  
 	  bInfo.biHeight = BitMap->bmHeight; 
-	  bInfo.biBitCount = 24;  //это количество бит на пиксель
-	  bInfo.biPlanes = 1;
+	  bInfo.biBitCount = BitMap->bmBitsPixel;  //это количество бит на пиксель
+	  bInfo.biPlanes =  BitMap->bmPlanes;
 	  bInfo.biCompression = BI_RGB;
 
   }
+  PixelBytesSize = bInfo.biBitCount / 8;
   switch(type)
   {
    case 1:
@@ -284,7 +308,7 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
    for (i = 0; i < (bInfo.biHeight); i++) 
    {
 		GetDIBits(*memBit, *hBMP, i, 1, tempLine,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
-		for(j = 0; j < bInfo.biWidth * 3; j+= 3) 
+		for(j = 0; j < bInfo.biWidth * PixelBytesSize; j+= PixelBytesSize) 
 		{
 			if(tempLine[j] < (255 - incr) &&
 			   tempLine[j + 1] < (255 - incr) &&
@@ -303,11 +327,11 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
 	free (tempLine);
    break;
    case 2:
-   tempLine = (BYTE *) malloc(bInfo.biWidth * (bInfo.biBitCount/8) * sizeof(BYTE));
+   tempLine = (BYTE *) malloc(bInfo.biWidth * PixelBytesSize * sizeof(BYTE));
    for (i = 0; i < (bInfo.biHeight); i++) 
    {
 		GetDIBits(*memBit, *hBMP, i, 1, tempLine,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
-		for(j = 0; j < bInfo.biWidth * 3; j+= 3) 
+		for(j = 0; j < bInfo.biWidth * PixelBytesSize; j+= PixelBytesSize) 
 		{
 			if(tempLine[j] > (0 + incr) &&
 			   tempLine[j + 1] > (0 + incr) &&
@@ -326,11 +350,11 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
 	free (tempLine); 
   break;
   case 3:
-   tempLine = (BYTE *) malloc(bInfo.biWidth * (bInfo.biBitCount/8) * sizeof(BYTE));
+   tempLine = (BYTE *) malloc(bInfo.biWidth * (PixelBytesSize) * sizeof(BYTE));
    for (i = 0; i < (bInfo.biHeight); i++) 
    {
 		GetDIBits(*memBit, *hBMP, i, 1, tempLine,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
-		for(j = 0; j < bInfo.biWidth * 3; j+= 3) 
+		for(j = 0; j < bInfo.biWidth * PixelBytesSize; j+= PixelBytesSize) 
 		{
 			if((tempLine[j] +
 			   tempLine[j + 1] +
@@ -351,18 +375,17 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
   break;
   //переворот изображения на 90
   case 4:
-	  tempLine = (BYTE *) malloc(bInfo.biWidth * (bInfo.biBitCount / 8) * sizeof(BYTE));
-	  Lines = (BYTE *) malloc(bInfo.biHeight * bInfo.biWidth * (bInfo.biBitCount / 8) * sizeof(BYTE));
+	  tempLine = (BYTE *) malloc(bInfo.biWidth * PixelBytesSize * sizeof(BYTE));
+	  Lines = (BYTE *) malloc(bInfo.biHeight * bInfo.biWidth * PixelBytesSize * sizeof(BYTE));
 	  for (i = 0; i < bInfo.biHeight; i++) {
 		  GetDIBits(*memBit, *hBMP, i, 1, tempLine,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
-		  k = i * (bInfo.biBitCount / 8);//shift вначале = 0	
-		  for(j = (bInfo.biWidth - 1) * (bInfo.biBitCount / 8); j >= 0; j-= 3) {
+		  k = i * PixelBytesSize;//shift вначале = 0	
+		  for(j = (bInfo.biWidth - 1) * PixelBytesSize; j >= 0; j-= PixelBytesSize) {
 			Lines[k] = tempLine[j];
 			Lines[k + 1] = tempLine[j + 1];
 			Lines[k + 2] = tempLine[j + 2];
-			k += bInfo.biHeight * (bInfo.biBitCount / 8);			
-		  } 
-		shift = 0;  
+			k += bInfo.biHeight * PixelBytesSize;			
+		  }   
 	  }
 	  temp = bInfo.biWidth;//переставляем ширину и длину местами
 	  
@@ -376,17 +399,100 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
 	  SetDIBitsToDevice(*memBit, 0, 0, bInfo.biWidth, bInfo.biHeight,0, 0,0,bInfo.biHeight, BitMap->bmBits, (LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
 	  *hBMP = CreateCompatibleBitmap(*memBit, BitMap->bmWidth, BitMap->bmHeight);
 	  SetDIBits(*memBit, *hBMP, 0, BitMap->bmHeight, BitMap->bmBits,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+	  SelectObject(*memBit, *hBMP);
 	  Lines = NULL;
 	  free(tempLine);
   break;
-  case 5:
-		
-
-
-  break;  
   }
 
 
 }
 
+void pasteBitMapsTogether(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, HBITMAP *hBMP2, BITMAP *BitMap2, HDC *memBit2)
+{
+	int temp = 0, i = 0, j = 0, k = 0, height = 0, width = 0, PixelBytesSize = 0, PixelBytesSize2 = 0;
+	short int heigher;
+    BYTE *tempLine1, *tempLine2, *Lines;
+    struct tagBITMAPINFOHEADER bInfo, bInfo2;
+    {
+	    bInfo.biSize = sizeof(bInfo);
+	    bInfo.biWidth = BitMap->bmWidth;  
+	    bInfo.biHeight = BitMap->bmHeight; 
+		bInfo.biBitCount = BitMap->bmBitsPixel;  //это количество бит на пиксель
+		bInfo.biPlanes = BitMap->bmPlanes;
+	    bInfo.biCompression = BI_RGB;
+    }
+	{
+	    bInfo2.biSize = sizeof(bInfo2);
+	    bInfo2.biWidth = BitMap2->bmWidth;  
+	    bInfo2.biHeight = BitMap2->bmHeight; 
+		bInfo2.biBitCount = BitMap2->bmBitsPixel;  //это количество бит на пиксель
+	    bInfo2.biPlanes = BitMap2->bmPlanes;
+	    bInfo2.biCompression = BI_RGB;
+    }
+	if (bInfo.biHeight > bInfo2.biHeight){
+		height = bInfo.biHeight;
+	}
+	else{
+		height = bInfo2.biHeight;
+	}
+	PixelBytesSize = bInfo.biBitCount / 8;
+	PixelBytesSize2 = bInfo2.biBitCount / 8;
 
+   width = bInfo.biWidth + bInfo2.biWidth;
+   Lines = (BYTE *) malloc((bInfo.biWidth + bInfo2.biWidth) * height * 3 * sizeof(BYTE));
+   tempLine1 = (BYTE *) malloc(bInfo.biWidth * PixelBytesSize * sizeof(BYTE));
+   tempLine2 = (BYTE *) malloc(bInfo2.biWidth * PixelBytesSize2 * sizeof(BYTE));
+   
+   for (i = 0; i < (height); i++) 
+   {
+	   if(i < bInfo.biHeight)
+			GetDIBits(*memBit, *hBMP, i, 1, tempLine1,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+	   if(i < bInfo2.biHeight)
+			GetDIBits(*memBit2, *hBMP2, i, 1, tempLine2,(LPBITMAPINFO) &bInfo2, DIB_RGB_COLORS);
+		for(j = 0; j < bInfo.biWidth * PixelBytesSize; j+= PixelBytesSize) 
+		{
+			if(i < bInfo.biHeight)
+			{
+				Lines[j + k] = tempLine1[j];
+				Lines[j + k + 1] = tempLine1[j + 1];
+				Lines[j + k + 2] = tempLine1[j + 2];
+			}else
+			{
+				Lines[j + k] = 0;
+				Lines[j + k + 1] = 0;
+				Lines[j + k + 2] = 0;
+		    } 
+		}
+		for(j = 0; j < bInfo2.biWidth * PixelBytesSize2; j += PixelBytesSize2) 
+		{
+			if(i < bInfo2.biHeight)
+			{
+				Lines[bInfo.biWidth * PixelBytesSize + j + k] = tempLine2[j];
+				Lines[bInfo.biWidth * PixelBytesSize + j + k + 1] = tempLine2[j + 1];
+				Lines[bInfo.biWidth * PixelBytesSize + j + k + 2] = tempLine2[j + 2];
+			}else
+			{
+				Lines[bInfo.biWidth * PixelBytesSize + j + k] = 0;
+				Lines[bInfo.biWidth * PixelBytesSize + j + k + 1] = 0;
+				Lines[bInfo.biWidth * PixelBytesSize + j + k + 2] = 0;
+		   } 
+		}
+		k += bInfo.biWidth * PixelBytesSize + bInfo2.biWidth * PixelBytesSize2; //смещение
+   }
+	  bInfo.biWidth = width;
+	  bInfo.biHeight = height;
+	  BitMap->bmHeight = bInfo.biHeight;
+	  BitMap->bmWidth = bInfo.biWidth;
+	  BitMap->bmWidthBytes = BitMap->bmWidth + BitMap2->bmWidth;
+	  BitMap->bmBits = (void *) Lines; 
+	  SetDIBitsToDevice(*memBit, 0, 0, bInfo.biWidth, bInfo.biHeight, 0, 0, 0, bInfo.biHeight, BitMap->bmBits, (LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+	  *hBMP = CreateCompatibleBitmap(*memBit, BitMap->bmWidth, BitMap->bmHeight);
+	  SetDIBits(*memBit, *hBMP, 0, BitMap->bmHeight, BitMap->bmBits,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+	  SelectObject(*memBit, *hBMP);
+	  Lines = NULL;
+      free(tempLine1);
+	  free(tempLine2);
+
+
+}

@@ -44,7 +44,7 @@ void DoubleLinkListFunc()
 	list = AllocAndInitListElement(genString(maxStringSize));
 	fillList(list, stringsCount, maxStringSize);
 	//ÂÛÇÂÀÒÜ ÔÓÍÊÖÈŞ ÑÎĞÒÈĞÎÂÊÈ
-	//sortListStrings(list);    
+	sortListStrings(list);    
 	cur_elem = list;
 	while (cur_elem->next != NULL) {
 			printf("%s\n", cur_elem->str);
@@ -180,4 +180,3 @@ int strComparison(char *str1, char *str2) {
 	}
 	return 0;
 }
-

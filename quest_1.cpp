@@ -1,7 +1,7 @@
 
 #include <Windows.h>
 #include <stdio.h>
-//Программа проверяет корректность ввода + может отрицательные числа.
+//Программу можно сдать.
 //45 "-", 48-57 "0...9"
 int myatoi(const char *str);
 char *get_hex(int num);
@@ -9,16 +9,17 @@ char *get_dec(int num);
 
 int main(int argc, char **argv) {
 	char str[] = "127684";
-	//char hex_str[] = "0x1923";
-	//printf("%d", myatoi(str));
-	print_hex(0x28392738);
+	char *num = get_dec(0x100);
+		
+	printf("%s", num);
 	system("pause");
+	free(num);
 	return 0;
 }
 
 int myatoi(const char *str) 
 {
-	int len, answer = 0, left = 0, i =0, m = 0;
+	int len, answer = 0, left = 0, i = 0, m = 0;
 ;
 	if (str[0] == 45)
 		len = 1;
@@ -69,16 +70,125 @@ int myatoi(const char *str)
 }
 char *get_hex(unsigned int num) 
 {
-		
-}
-char *get_dec(unsigned int num) 
-{
-	int i, comp_num = 9, mul = 9;
-	for(i = 1;;i++) 
+	int i = 0, j = 0, comp_num = 9, div = 16;
+	char *answer;
+	for (i = 1;;i++) 
 	{
 		if(num <= comp_num)
 			break;
-		comp_num += comp_num * 10 + 9;
-
+		else
+			comp_num = comp_num * 10 + 9;
 	}
+	answer = (char*) malloc((i + 2 + 1) * sizeof(char));
+	answer[0] = '0';
+	answer[1] = 'x';
+	for(j = (i + 2 - 1); j >=2 ;j--) 
+	{
+		switch(num % div){
+			case 0:
+				answer[j] = '0';
+			break;
+			case 1:
+				answer[j] = '1';
+			break;
+			case 2:
+				answer[j] = '2';
+			break;
+			case 3:
+				answer[j] = '3';
+			break;
+			case 4:
+				answer[j] = '4';
+			break;
+			case 5:
+				answer[j] = '5';
+			break;
+			case 6:
+				answer[j] = '6';
+			break;
+			case 7:
+				answer[j] = '7';
+			break;
+			case 8:
+				answer[j] = '8';
+			break;
+			case 9:
+				answer[j] = '9';
+			break;
+			case 10:
+				answer[j] = 'A';
+			break;
+			case 11:
+				answer[j] = 'B';
+			break;
+			case 12:
+				answer[j] = 'C';
+			break;
+			case 13:
+				answer[j] = 'D';
+			break;
+			case 14:
+				answer[j] = 'E';
+			break;
+			case 15:
+				answer[j] = 'F';
+			break;
+
+		}
+		num = num / div;
+	}
+	answer[i + 2] = '\0';
+	return answer;	
+}
+char *get_dec(unsigned int num) 
+{
+	int i = 0, j = 0, comp_num = 9, div = 10;
+	char *answer;
+	for (i = 1;;i++) 
+	{
+		if(num <= comp_num)
+			break;
+		else
+			comp_num = comp_num * 10 + 9;
+	}
+	answer = (char*) malloc((i + 1) * sizeof(char));
+	for(j = (i - 1); j >=0 ;j--) 
+	{
+
+		switch(num % 10){
+			case 0:
+				answer[j] = '0';
+			break;
+			case 1:
+				answer[j] = '1';
+			break;
+			case 2:
+				answer[j] = '2';
+			break;
+			case 3:
+				answer[j] = '3';
+			break;
+			case 4:
+				answer[j] = '4';
+			break;
+			case 5:
+				answer[j] = '5';
+			break;
+			case 6:
+				answer[j] = '6';
+			break;
+			case 7:
+				answer[j] = '7';
+			break;
+			case 8:
+				answer[j] = '8';
+			break;
+			case 9:
+				answer[j] = '9';
+			break;
+		}
+		num = num / 10;
+	}
+	answer[i] = '\0';
+	return answer;	
 }

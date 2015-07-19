@@ -59,7 +59,6 @@ int APIENTRY _tWinMain(HINSTANCE This, // Дескриптор текущего приложения
 	This,         // Дескриптор приложения
 	NULL);        // Дополнительной информации нет
 	ShowWindow(hWnd, mode); // Показать окно
-
 	hMainMenu= CreateMenu();
 	hPopupMenuFile = CreatePopupMenu();
 	hPopupMenuEdit = CreatePopupMenu();
@@ -69,7 +68,9 @@ int APIENTRY _tWinMain(HINSTANCE This, // Дескриптор текущего приложения
 	 {
 		 AppendMenu(hPopupMenuFile, MF_STRING, ID_FILE_OPEN, _T("Открыть"));
 		 AppendMenu(hPopupMenuFile, MF_SEPARATOR, 1000, _T(""));
-		AppendMenu(hPopupMenuFile, MF_STRING, ID_SAVE_BITMAP, _T("Сохранить"));
+//		AppendMenu(hPopupMenuFile, MF_STRING, ID_SAVE_BITMAP, _T("Сохранить"));
+//		AppendMenu(hPopupMenuFile, MF_SEPARATOR, 1000, _T(""));
+		AppendMenu(hPopupMenuFile, MF_STRING, IDM_EXIT, _T("Выход"));
 		AppendMenu(hPopupMenuFile, MF_SEPARATOR, 1000, _T(""));
      }
 	 {
@@ -169,7 +170,6 @@ lParam)
 			}
 		break;
 		case ID_FILE_OPEN:
-
 			BitMapLoadAndSet(&hBitmap2, &bm2, &memBit2); 
 			TwoImages = 1;
 			//SendMessage(hWnd, WM_SIZE, 0,0);

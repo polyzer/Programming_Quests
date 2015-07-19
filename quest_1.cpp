@@ -7,7 +7,8 @@ char *get_dec(int num);
 
 int main(int argc, char **argv) {
 //	char str[] = "127684";
-	char *num = get_dec(256);	
+	//char *num = get_hex(25632234);	
+	char *num = get_dec(0x1871DEA);	
 	printf("%s\n", num);
 	system("pause");
 	free(num);
@@ -56,7 +57,7 @@ char *get_hex(unsigned int num)
 	for(j = (i + 2 - 1); j >=2 ;j--) 
 	{
 		if (num % div > 9)
-			answer[j] = '0' + 8 + num % div;
+			answer[j] = '0' + 7 + num % div;
 		else 
 			answer[j] = '0' + num % div;
 		num = num / div;

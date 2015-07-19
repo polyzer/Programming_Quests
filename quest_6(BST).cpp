@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <locale.h>
 
 //ключ данного родительского узла больше 
 struct Data {
@@ -13,17 +14,24 @@ struct Node {
 	struct Data data;
 	struct Node *left; // указатель на левый 
 	struct Node *right; // указатель на правый.
+	struct Node *parent;
 };
-
-struct Node *FIND(const char *key);
-bool INSERT(const char *key, const char *value);
-void REMOVE(const char *key);
-bool rInsertion(struct Node *node, const char *key, const char *value);
-struct Node *rFind(struct Node *node, const char *key);
-struct Node *head = (struct Node *) malloc(sizeof(struct Node)); //точка входа в дерево, главный элемент
-
+void REMOVE(struct Node **node, const char *key);
+int INSERT(struct Node *node, const char *key, const char *value);
+struct Node *FIND(struct Node *node, const char *key);
+struct Node *createNode(const char *key, const char *value);
+void setParent(struct Node **node, struct Node **parent);
+void copyNode(struct Node **node, struct Node **CopyNode);
+void copyNodeData(struct Node **node, struct Node **CopyNode);
+void freeNode(struct Node **node);
+struct Node *findMinBiggerNode(struct Node *node);
+void BSTFunc();
+void PrintMenu();
 
 int main(int argc, char **argv) {
+	
+	setlocale(LC_ALL, "Russian");
+	BSTFunc();
 
 	return 0;
 }
@@ -31,26 +39,52 @@ int main(int argc, char **argv) {
 void BSTFunc()
 {
 	int menu = 0;
-	char *key, *value;
+	char *key = (char *) malloc( 100 * sizeof(char));
+	char *value = (char *) malloc (100 * sizeof (char));
+	struct Node *head = NULL; //точка входа в дерево, главный элемент		
 	PrintMenu();
-	while(scanf("%d", menu) != EOF){
+	while(scanf("%d", &menu) != EOF){
 		if (menu == 1){
-			printf("Введите ключ и значение:");
+			printf("Введите ключ и значение:\n");
 			scanf("%s%s", key, value);
-			INSERT(key, value);
+			if (head == NULL){
+				head = createNode(key, value);
+				head->parent = NULL;
+			}
+			else
+				INSERT(head, key, value);
 		}
 		if (menu == 2){
-			printf("Введите ключа для поиска:");
+			printf("Введите ключа для поиска:\n");
 			scanf("%s", key);
-			FIND(key);
+			if (head == NULL)
+				printf("Массив пуст\n");
+			else {
+				struct Node *findNode =	FIND(head, key);
+				if(findNode == NULL)
+					printf("Элемента с данным индексом не найдено.");
+				else
+				{
+					printf("%s\n", findNode->data.value);
+					findNode = NULL;
+				}
+			}
 		}
 		if (menu == 3){
-			printf("Введите ключ для удаления:");
+			printf("Введите ключ для удаления:\n");
 			scanf("%s", key);
-			REMOVE(key);
+			if (head == NULL)
+				printf("Массив пуст\n");
+			else{
+				if (!strcmp(head->data.key, key) && head->left == NULL && head->right == NULL){
+					freeNode(&head);
+				}
+				else
+					REMOVE(&head, key);
+			}
 		}
 		if (menu == 4){
-			printf("Очистка дерева.");
+			printf("Очистка дерева.\n");
 			//удаление
 			//освобождение key, value.
 			exit(0);
@@ -62,88 +96,151 @@ void BSTFunc()
 
 void PrintMenu()
 {
-	printf("***********Двоичное дерево поиска.**********");
-	printf("1. Добавить элемент\n2. Найти значение по ключу\n3. Удалить элемент по заданному ключу\n 4. Выход");
+	printf("***********Двоичное дерево поиска.**********\n");
+	printf("1. Добавить элемент\n2. Найти значение по ключу\n3. Удалить элемент по заданному ключу\n 4. Выход\n");
 }
 
-struct Node *FIND (const char *key)
-{
-	return	rFind(head, key);
-}
 
-struct Node *rFind(struct Node *node, const char *key)
+struct Node *FIND(struct Node *node, const char *key)
 {
-	if (node == NULL){
-		printf("Элемента с заданным ключом '%s' не существует", key);
-	}
-	//struct Node *answer = NULL;
-	if (!strcmp(node->data.key, key)) 
-	{ //если у текущего нода совпал ключ с заданным
-		return node; // тогда возвращаем его
-	}
-	if (strcmp(node->data.key, key) < 0) 
-	{ //если ключ меньше то идем в левый поднод
-		if (node->left == NULL) 
-		{ //если его еще не существует
-			printf("Элемента с заданным ключом '%s' не существует", key);
-			return NULL; // и выходим
-		} else {
-			return 	rFind(node->left, key); // если он cуществует, переходим к нему
+	struct Node *cur_node = node;
+	while (1){
+		if (!strcmp(cur_node->data.key, key)) 
+		{ //если у текущего нода совпал ключ с заданным
+			return cur_node;
 		}
-	} else { //если заданный ключ >= нашего
-		if (node->right == NULL)
-		{ //если правого еще не существует
-			printf("Элемента с заданным ключом '%s' не существует", key);
-			return NULL; // и выходим
-		} else {
-			return rFind(node->right, key);
-		}		
-	}
-}
+		if (strcmp(cur_node->data.key, key) > 0) 
+		{ //если ключ меньше то идем в левый поднод
+			if (cur_node->left == NULL) 
+			{ //если его еще не существует
+				cur_node = NULL;
+				return NULL;
+			} else {
+				cur_node = cur_node->left; // если он уже существует, переходим к нему
+				continue;
+			}		
+		} else 
+		{
+			if (cur_node->right == NULL) 
+			{ //если правого еще не существует
+				cur_node = NULL;
+				return NULL;
+			} else {
+				cur_node = cur_node->right; // если он уже существует, переходим к нему
+				continue;
+			}
 
-//вставка
-bool INSERT(const char *key, const char *value)
-{
-	if (head == NULL) {
-		head = createNode(key, value);
-		return true;
+		}
 	}
-	rInsertion(head, key, value);
 }
 
 //рекурсивная вставка... углубляемся до вставки.
-bool rInsertion(struct Node *node, const char *key, const char *value) {
-	if (node == NULL) {// для верхушки дерева
-		node = createNode(key, value);//
-	}
-	if (!strcmp(node->data.key, key)) 
-	{ //если у текущего нода совпал ключ с заданным
-		strcpy(node->data.value, value); //заменяем 
-		return true; // и выходим
-	}
-	if (strcmp(node->data.key, key) < 0) 
-	{ //если ключ меньше то идем в левый поднод
-		if (node->left == NULL) 
-		{ //если его еще не существует
-			node->left = createNode(key, value); // создаем его
-			return true; // и выходим
-		} else {
-			rInsertion(node->left, key, value); // если он уже существует, переходим к нему
-			return true;
+int INSERT(struct Node *node, const char *key, const char *value) 
+{
+	struct Node *cur_node = node;
+	while (1){
+		if (!strcmp(cur_node->data.key, key)) 
+		{ //если у текущего нода совпал ключ с заданным
+			strcpy(cur_node->data.value, value); //заменяем 
+			return 0; // и выходим
 		}
-	} else { //если заданный ключ >= нашего
-		if (node->right == NULL) 
-		{ //если правого еще не существует
-			node->right = createNode(key, value); // задаем его
-			return true; // и выходим
-		} else {
-			rInsertion(node->right, key, value); // если он уже существует, переходим к нему
-			return true;
-		}		
+		if (strcmp(cur_node->data.key, key) > 0) 
+		{ //если ключ меньше то идем в левый поднод
+			if (cur_node->left == NULL) 
+			{ //если его еще не существует
+				cur_node->left = createNode(key, value); // создаем его
+				setParent(&cur_node->left, &cur_node);
+				return 0; // и выходим
+			} else 
+			{
+				cur_node = cur_node->left; // если он уже существует, переходим к нему
+				continue;
+			}		
+		} else 
+		{
+			if (cur_node->right == NULL) 
+			{ //если правого еще не существует
+				cur_node->right = createNode(key, value); // задаем его
+				setParent(&cur_node->right, &cur_node);
+				return 0; // и выходим
+			} else 
+			{
+				cur_node = cur_node->right; // если он уже существует, переходим к нему
+				continue;
+			}	
+		}
 	}
 } //конец рекурсивной вставки
 
+void REMOVE(struct Node **head, const char *key)
+{
+	struct Node *cur_node = *head, *right, *left;
+	struct Node *minMoreNode;
+	while (1){
+		if (!strcmp(cur_node->data.key, key)) 
+		{ //если у текущего нода совпал ключ с заданным
+			left = cur_node->left;
+			right = cur_node->right;
+			if(left == NULL && right == NULL)
+			{//если оба наследника == 0
+				if (cur_node->parent->left == cur_node) {
+					cur_node->parent->left = NULL;//обнуляем у предка если текущий - левый
+				}
+				if (cur_node->parent->right == cur_node) {
+					cur_node->parent->right = NULL;//обнуляем у предка если текущий - правый
+				}
+				free(cur_node->data.key);
+				free(cur_node->data.value);
+				cur_node->parent = NULL;
+				free(cur_node);
+				cur_node = NULL;
+				return;
+			}
+			if (cur_node->left == NULL){
+				copyNode(&cur_node, &right);
+				freeNode(&right);
+				return;
+			}
+			if (cur_node->right == NULL){
+				copyNode(&cur_node, &left);
+				freeNode(&left);
+				return;
+			}
+			//если у нас существуют оба 
+			minMoreNode = findMinBiggerNode(cur_node);
+			if (minMoreNode->right != NULL)
+			{
+				minMoreNode->parent->left = minMoreNode->right;
+			}
+			copyNodeData(&cur_node, &minMoreNode);
+			freeNode(&minMoreNode);
+		
+		}
+		if (strcmp(cur_node->data.key, key) > 0) 
+		{ //если ключ меньше то идем в левый поднод
+			if (cur_node->left == NULL) 
+			{ //если его еще не существует
+				printf("Элемента с заданным ключом не существует");
+			} else 
+			{
+				cur_node = cur_node->left; // если он уже существует, переходим к нему
+				continue;
+			}		
+		} else 
+		{
+			if (cur_node->right == NULL) 
+			{ //если правого еще не существует
+				printf("Элемента с заданным ключом не существует");
+			} else 
+			{
+				cur_node = cur_node->right; // если он уже существует, переходим к нему
+				continue;
+			}	
+		}
+	}
 
+
+}
 
 //создает ноду
 struct Node *createNode(const char *key, const char *value)
@@ -156,4 +253,56 @@ struct Node *createNode(const char *key, const char *value)
 	newNode->left = NULL;
 	newNode->right = NULL;
 	return newNode;
+}
+
+void setParent(struct Node **node, struct Node **parent){
+	(*node)->parent = *parent;
+}
+
+void copyNode(struct Node **node, struct Node **CopyNode)
+{
+	(*node)->data.key = (char *) malloc((strlen((*CopyNode)->data.key + 1) * sizeof(char))); //место под key (+1) - для \0
+	strcpy((*node)->data.key, (*CopyNode)->data.key);//копируем key
+	(*node)->data.value = (char *) malloc((strlen((*CopyNode)->data.value + 1) * sizeof(char))); //место под value (+ 1) - для \0
+	strcpy((*node)->data.value, (*CopyNode)->data.value); // копируем value
+	(*node)->left = (*CopyNode)->left;//указатель на левого потомка
+	(*node)->right = (*CopyNode)->right; // указатель на правого потомка
+}
+void copyNodeData(struct Node **node, struct Node **CopyNode)
+{
+	(*node)->data.key = (char *) malloc((strlen((*CopyNode)->data.key + 1) * sizeof(char))); //место под key (+1) - для \0
+	strcpy((*node)->data.key, (*CopyNode)->data.key);//копируем key
+	(*node)->data.value = (char *) malloc((strlen((*CopyNode)->data.value + 1) * sizeof(char))); //место под value (+ 1) - для \0
+	strcpy((*node)->data.value, (*CopyNode)->data.value); // копируем value
+
+}
+void freeNode(struct Node **node)
+{
+
+	free((*node)->data.key);
+	(*node)->data.key = NULL;
+	free((*node)->data.value);
+	(*node)->data.value = NULL;
+	(*node)->parent = NULL;
+	(*node)->left = NULL;
+	(*node)->right = NULL;
+	free(*node);
+	*node = NULL;
+	return;
+}
+
+
+
+struct Node *findMinBiggerNode(struct Node *node)
+{
+	struct Node *cur_node = node;
+	cur_node = cur_node->right;
+	while (1)
+	{
+		if (cur_node->left != NULL)
+			cur_node->left;
+		else
+			return cur_node;
+	}
+
 }

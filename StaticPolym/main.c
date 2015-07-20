@@ -10,12 +10,18 @@ int findMaxDegree(char *strPoly)
 {
 	int i = 0, j = 0, readNum = 1, readDegree = 0, degreeLen = 0, num;
 	char *degree = NULL, *tempDegree = NULL;
-	for (i = strlen(strPoly); i >= 0; i--) 
+	for (i = (strlen(strPoly)); i >= 0; i--) 
 	{
 		if (strPoly[i] == '+' || i == 0)
 		{
-			for (j = i+1; strPoly[j] != '+' || strPoly[j] != '\0'; j++)
+			if (i == 0)
+				j = 0;
+			else 
+				j = i+1;
+			for(;strPoly[j] != '\0'; j++)
 			{
+//				if(strPoly[j] == '+')
+//					break;
 				if (readNum)
 					if (strPoly[j] == 'x' || strPoly[j] == 'X')
 					{
@@ -25,63 +31,112 @@ int findMaxDegree(char *strPoly)
 					}
 				if (readDegree)
 				{
-					tempDegree = (char *) realloc(degree, degreeLen * sizeof(char) + 2);
+					tempDegree = (char *) realloc(tempDegree, degreeLen * sizeof(char) + 2);
 					tempDegree[degreeLen] = strPoly[j];
 					degreeLen++;
 				}
 			}
 			if(degreeLen != 0){
-				tempDegree[degreeLen + 1] = '\0';
-				if (strcmp(degree, tempDegree) < 0)
+				tempDegree[degreeLen] = '\0';
+				if ((degree == NULL) || (atof(degree) < atof(tempDegree)))
 				{
-					degree = (char *) realloc(degree, sizeof(char) * strlen(tempDegree) + 1);
+					degree = (char *) realloc(degree, sizeof(char) * (strlen(tempDegree) + 1));
 					strcpy(degree, tempDegree);
+					degree[strlen(tempDegree)] = '\0';
 				}
 				degreeLen = 0;
+				readNum = 1;
+				readDegree = 0;
+
 			}
 		}
 	}
 	free(tempDegree);
-	if (degreeLen == NULL)
+	tempDegree = NULL;
+	if (degree == NULL)
 		return 0;
 	else 
 	{
 		num = atof(degree);
+		free(degree);
+		degree = NULL;
+		return num;
 	}
 
 }
-
 
 struct Polynomial *parsePolynomial(char *strPoly)
 {
-	struct Polynomial *polynomial = (struct Polynomial *) malloc(sizeof(struct Polynomial));
-	polynomial->poly = (double*) malloc(sizeof(double));
-	polynomial->poly[0] = NULL;
-	int i,j, plus, len = strlen(strPoly), count = 0, tempDegree = 0, tempNum = 0, toX = 1, toNum = 0;
-	j = len;
-	for (i = (len - 1); i >= 0; i--)// разбиваем строку на данные. мб c = a + b , c += b; 
+	int i = 0, j = 0, readNum = 1, readDegree = 0, degreeLen = 0, num = 0, factorLen = 0;
+	char *degree = NULL, *tempDegree = NULL, *factor = NULL, *tempFactor = NULL;//
+	struct Polynomial *polynomial = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // объ€вл€ем полином
+	int maxDegree = findMaxDegree(strPoly);//узнаем максимальную степень дл€ выделени€ пам€ти
+	polynomial->poly = (double *) malloc(sizeof(double) * (maxDegree + 1)); //allocate elements + 1 for set NULL
+	for(i=0;i<maxDegree;i++)
 	{
-		if (strPoly[i] == '+' || i == 0)
+		polynomial->poly[i] = NULL;	
+	}
+	polynomial->poly[maxDegree] == NULL;// set maxDegree element = NULL
+	
+	for (i = (strlen(strPoly)); i >= 0; i--) 
+	{
+		if (strPoly[i] == '+' || strPoly[i] == '-' || i == 0)
 		{
-			polynomial->poly = (double*) realloc(polynomial, (count + 2) * sizeof(double));
-			polynomial->poly[count+1] = NULL;
-//			for(tempLen = j; tempLen > i; tempLen--, j--) 
+			if (i == 0)
+				j = 0;
+			else 
+				j = i;
+			for(;strPoly[j] != '\0'; j++)
 			{
-				if (toX)
-				{
-					if (strPoly[j] == 'x')
-						polynomial->[count][tempLen] = action[j];
+//				if(strPoly[j] == '+' || strPoly[j] == '-')
+//					break;
+				if (readNum){
+					if (strPoly[j] == 'x' || strPoly[j] == 'X')
+					{
+						readNum = 0;
+						readDegree = 1;
+						continue;
+					}else
+					{
+						tempFactor = (char *) realloc(tempFactor, factorLen * sizeof(char) + 2);
+						tempFactor[factorLen] = strPoly[j];
+						factorLen++;
+					}
 				}
+				if (readDegree)
+				{
+					tempDegree = (char *) realloc(tempDegree, degreeLen * sizeof(char) + 2);
+					tempDegree[degreeLen] = strPoly[j];
+					degreeLen++;
+				}
+			}
+			if (factorLen != 0)
+			{
+				tempFactor[factorLen] = '\0';
 				
 			}
-//			actArray[count][tempLen] = '\0';//присваиваем конец строки
-			count++;
-			j++; // увеличиваем на 1, чтобы попасть на элемент за ' '
-		}// прочитали им€
+			if(degreeLen != 0){
+				tempDegree[degreeLen] = '\0';
+				if (factorLen != 0)
+				{
+					polynomial->poly[atoi(tempDegree)] = 1;
+				}else
+				{
+					polynomial->poly[atoi(tempDegree)] = atof(tempFactor);
+				}
+
+				degreeLen = 0;
+				readNum = 1;
+				readDegree = 0;
+
+			}
+		}
 	}
-
+	free(tempFactor);
+	free(tempDegree);
+	tempDegree = NULL;
+	tempFactor = NULL;
 }
-
 
 void parseAction(const char *action)
 {
@@ -126,7 +181,9 @@ void parseAction(const char *action)
 
 int main () {
 	
-	parseAction("c += b");
-
+	//parseAction("c += b");
+	int num = findMaxDegree("100");
+	printf("%i", num);
+	system("pause");
     return 0;
 }

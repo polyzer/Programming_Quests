@@ -55,7 +55,7 @@ void BSTFunc()
 				INSERT(head, key, value);
 		}
 		if (menu == 2){
-			printf("Введите ключа для поиска:\n");
+			printf("Введите ключ для поиска:\n");
 			scanf("%s", key);
 			if (head == NULL)
 				printf("Массив пуст\n");

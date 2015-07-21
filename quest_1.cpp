@@ -1,6 +1,6 @@
 #include <Windows.h>
 #include <stdio.h>
-//Программу можно сдать.
+//Реализовать функции преобразования из числа в строку и из строки в число.
 int myatoi(const char *str);
 char *get_hex(int num);
 char *get_dec(int num);

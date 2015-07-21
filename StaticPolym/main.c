@@ -5,7 +5,7 @@
 
 struct Polynomial *Polynomials;
 char *todo;
-
+/*
 int findMaxDegree(char *strPoly)
 {
 	int i = 0, j = 0, readNum = 1, readDegree = 0, degreeLen = 0, num;
@@ -64,32 +64,48 @@ int findMaxDegree(char *strPoly)
 	}
 
 }
+*/
+
+void printPolynomial(struct Polynomial* poly)
+{
+	int i = 0, j;
+	while (1)
+	{
+		if((poly->monomials[i].degree == 0) && (poly->monomials[i].factor == 0))
+			break;
+		printf("%f %i\n", poly->monomials[i].factor, poly->monomials[i].degree);
+		i++;
+	}
+
+}
 
 struct Polynomial *parsePolynomial(char *strPoly)
 {
-	int i = 0, j = 0, readNum = 1, readDegree = 0, degreeLen = 0, num = 0, factorLen = 0;
-	char *degree = NULL, *tempDegree = NULL, *factor = NULL, *tempFactor = NULL;//
+	int i = 0, j = 0, readNum = 1, readDegree = 0, degreeLen = 0, num = 0, factorLen = 0, monomialCount = 0;
+	char *tempDegree = NULL, *tempFactor = NULL;//
 	struct Polynomial *polynomial = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // объ€вл€ем полином
-	int maxDegree = findMaxDegree(strPoly);//узнаем максимальную степень дл€ выделени€ пам€ти
-	polynomial->poly = (double *) malloc(sizeof(double) * (maxDegree + 1)); //allocate elements + 1 for set NULL
-	for(i=0;i<maxDegree;i++)
-	{
-		polynomial->poly[i] = NULL;	
-	}
-	polynomial->poly[maxDegree] == NULL;// set maxDegree element = NULL
-	
+	polynomial->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * 2);
+	polynomial->monomials[monomialCount].degree = 0;
+	polynomial->monomials[monomialCount].factor = 0;
+	polynomial->monomials[monomialCount + 1].degree = 0;
+	polynomial->monomials[monomialCount + 1].factor = 0;
+
 	for (i = (strlen(strPoly)); i >= 0; i--) 
 	{
 		if (strPoly[i] == '+' || strPoly[i] == '-' || i == 0)
 		{
 			if (i == 0)
 				j = 0;
-			else 
-				j = i;
+			else {
+				j = i+1;
+				tempFactor = (char *) realloc(tempFactor, sizeof(char) * (factorLen + 2));
+				tempFactor[factorLen] = strPoly[i];
+				factorLen++;
+			}
 			for(;strPoly[j] != '\0'; j++)
 			{
-//				if(strPoly[j] == '+' || strPoly[j] == '-')
-//					break;
+				if(strPoly[j] == '+' || strPoly[j] == '-')
+					break;
 				if (readNum){
 					if (strPoly[j] == 'x' || strPoly[j] == 'X')
 					{
@@ -98,14 +114,14 @@ struct Polynomial *parsePolynomial(char *strPoly)
 						continue;
 					}else
 					{
-						tempFactor = (char *) realloc(tempFactor, factorLen * sizeof(char) + 2);
+						tempFactor = (char *) realloc(tempFactor, sizeof(char) * (factorLen + 2));
 						tempFactor[factorLen] = strPoly[j];
 						factorLen++;
 					}
 				}
 				if (readDegree)
 				{
-					tempDegree = (char *) realloc(tempDegree, degreeLen * sizeof(char) + 2);
+					tempDegree = (char *) realloc(tempDegree, sizeof(char) * (degreeLen + 2));
 					tempDegree[degreeLen] = strPoly[j];
 					degreeLen++;
 				}
@@ -113,31 +129,44 @@ struct Polynomial *parsePolynomial(char *strPoly)
 			if (factorLen != 0)
 			{
 				tempFactor[factorLen] = '\0';
-				
 			}
-			if(degreeLen != 0){
+			if(degreeLen != 0)
+			{
 				tempDegree[degreeLen] = '\0';
-				if (factorLen != 0)
-				{
-					polynomial->poly[atoi(tempDegree)] = 1;
-				}else
-				{
-					polynomial->poly[atoi(tempDegree)] = atof(tempFactor);
-				}
-
-				degreeLen = 0;
-				readNum = 1;
-				readDegree = 0;
-
 			}
+			if ((factorLen != 0) && (degreeLen == 0))//если у нас нет коэффициента, но есть степень
+			{
+				polynomial->monomials[monomialCount].degree = 0;
+				polynomial->monomials[monomialCount].factor = atof(tempFactor);
+				monomialCount++;
+			}
+			if ((factorLen == 0) && (degreeLen != 0)) //если у нас нет степени, но есть коэффициент
+			{
+				polynomial->monomials[monomialCount].degree = atoi(tempDegree);
+				polynomial->monomials[monomialCount].factor = 0;				
+				monomialCount++;
+			}
+			if ((factorLen != 0) && (degreeLen != 0))
+			{
+				polynomial->monomials[monomialCount].degree = atoi(tempDegree);
+				polynomial->monomials[monomialCount].factor = atof(tempFactor);				
+				monomialCount++;
+			}
+			polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (monomialCount + 2));
+			polynomial->monomials[monomialCount+1].degree = 0;
+			polynomial->monomials[monomialCount+1].factor = 0;
+			readNum = 1;
+			readDegree = 0;
+			factorLen = 0;
+			degreeLen = 0;
+			free(tempFactor);
+			free(tempDegree);
+			tempDegree = NULL;
+			tempFactor = NULL;
 		}
 	}
-	free(tempFactor);
-	free(tempDegree);
-	tempDegree = NULL;
-	tempFactor = NULL;
+	return polynomial;
 }
-
 void parseAction(const char *action)
 {
 	char actions[] = {'=', '+', '-', '*', '/', '%'};
@@ -182,8 +211,7 @@ void parseAction(const char *action)
 int main () {
 	
 	//parseAction("c += b");
-	int num = findMaxDegree("100");
-	printf("%i", num);
+	printPolynomial(parsePolynomial("100x3-200"));
 	system("pause");
     return 0;
 }

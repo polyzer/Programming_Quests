@@ -1,3 +1,4 @@
+//Реализация функций преобразования bmp-изображения
 #include <Windows.h>
 #include <tchar.h>
 

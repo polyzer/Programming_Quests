@@ -1,4 +1,10 @@
+struct Monomial
+{
+	double factor;
+	int degree;
+};
 struct Polynomial{
-	double *poly;
+	struct Monomial *monomials;
 	char *name;
 };
+

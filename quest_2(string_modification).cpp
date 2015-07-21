@@ -1,4 +1,3 @@
-//опнцпюллю пюанрюер, ядюрэ мюдн!
 #include <Windows.h>
 #include <stdio.h>
 

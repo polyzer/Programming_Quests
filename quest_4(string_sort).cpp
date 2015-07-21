@@ -1,3 +1,4 @@
+//Реализовать пузырьковую сортировку двумерного массива слов.
 #include <locale.h>
 #include <stdio.h>
 #include <time.h>

@@ -3,8 +3,269 @@
 #include <string.h>
 #include "Polynomial.h"
 
-struct Polynomial *Polynomials;
-char *todo;
+
+//переменные начинаюст€ с $
+
+struct Polynomial *GCD(struct Polynomial *poly1, struct Poynomial *poly2);
+struct Polynomial *divPolynomials(struct Polynomial *poly1, struct Polynomial *poly2);
+struct Polynomial *mulPolynomials(struct Polynomial *poly1, struct Polynomial *poly2);
+
+struct Polynomial *subPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
+{
+	struct Polynomial *temp;
+	//сначала копируем данные из poly1;
+	int i = 0, j = 0, wasSubstructed = 0;
+	temp->monomialsCount = poly1->monomialsCount;
+	for(i = 0; i < poly1->monomialsCount; i++)//////////////////////////////////////////////////
+	{
+		temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
+		temp->monomials[i].degree = poly1->monomials[i].degree;
+		temp->monomials[i].factor = poly1->monomials[i].factor;
+	}
+	//теперь добавл€ем данные из 
+	for(i = 0; i < poly2->monomialsCount; i++)//////////////////////////////////////////////////
+	{
+		for(j = 0; j < temp->monomialsCount; j++)//////////////////////////////////////////////////
+		{
+			if(temp->monomials[j].degree == poly2->monomials[i].degree) //здесь будем перебирать j-тые дл€ временного
+			{
+				temp->monomials[j].factor -= poly2->monomials[i].factor;
+				wasSubstructed++;
+				break;
+			}
+		}
+		if (wasSubstructed > 0)
+			wasSubstructed = 0;
+		else 
+		{
+			temp->monomialsCount++;
+			temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
+			temp->monomials[temp->monomialsCount].degree = poly2->monomials[i].degree;
+			temp->monomials[temp->monomialsCount].factor = poly2->monomials[i].factor;
+		}
+	}
+	return temp;
+
+}
+struct Polynomial *addPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
+{
+	struct Polynomial *temp;
+	//сначала копируем данные из poly1;
+	int i = 0, j = 0, wasAdded = 0;
+	temp->monomialsCount = poly1->monomialsCount;
+	for(i = 0; i < poly1->monomialsCount; i++)//////////////////////////////////////////////////
+	{
+		temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
+		temp->monomials[i].degree = poly1->monomials[i].degree;
+		temp->monomials[i].factor = poly1->monomials[i].factor;
+	}
+	//теперь добавл€ем данные из 
+	for(i = 0; i < poly2->monomialsCount; i++)//////////////////////////////////////////////////
+	{
+		for(j = 0; j < temp->monomialsCount; j++)//////////////////////////////////////////////////
+		{
+			if(temp->monomials[j].degree == poly2->monomials[i].degree) //здесь будем перебирать j-тые дл€ временного
+			{
+				temp->monomials[j].factor += poly2->monomials[i].factor;
+				wasAdded++;
+				break;
+			}
+		}
+		if (wasAdded > 0)
+			wasAdded = 0;
+		else 
+		{
+			temp->monomialsCount++;
+			temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
+			temp->monomials[temp->monomialsCount].degree = poly2->monomials[i].degree;
+			temp->monomials[temp->monomialsCount].factor = poly2->monomials[i].factor;
+		}
+	}
+	return temp;
+}
+struct Polynomial **findPolynomialByName(struct PolynomialsArray &PolyArr, const char *name)
+{
+	int i;
+	for (i = 0; i <= PolyArr.count; i++) 
+	{
+		if (!strcmp(PolyArr.Polynomials[i]->name, name)){
+			return &PolyArr.Polynomials[i];
+		}
+	}
+	return NULL;
+}
+void deletePolyArray (struct PolynomialsArray &PolyArray)
+{
+	int i = 0;
+	while (PolyArray.Polynomials[i] != NULL) 
+	{
+		free(PolyArray.Polynomials[i]);
+		i++;
+	}
+	free(PolyArray.Polynomials);
+}
+void appendPolynomialToArray(struct PolynomialsArray &PolyArray, struct Polynomial **polynomial) 
+{
+	PolyArray.Polynomials = (struct Polynomial **) realloc(PolyArray.Polynomials, sizeof(struct Polynomial *) * (PolyArray.count + 1));
+	PolyArray.Polynomials[PolyArray.count] = *polynomial;
+	PolyArray.count++;
+}
+int identificationVariable(char *expression)
+{
+	if (expression[0] == '$')
+		return 1;
+	else
+		return 0;
+}
+void printPolynomial(struct Polynomial* poly)
+{
+	int i = 0, j;
+	for(i = 0; i < poly->monomialsCount; i++)
+	{
+		printf("%f %i\n", poly->monomials[i].factor, poly->monomials[i].degree);
+	}
+
+}
+struct Polynomial *getPolynomialFromString(char *strPoly)
+{
+	int i = 0, j = 0, readNum = 1, readDegree = 0, degreeLen = 0, num = 0, factorLen = 0;
+	char *tempDegree = NULL, *tempFactor = NULL;//
+	struct Polynomial *polynomial = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // объ€вл€ем полином
+	polynomial->monomialsCount = 1;
+	polynomial->monomials = NULL;
+	for (i = (strlen(strPoly)); i >= 0; i--) 
+	{
+		if (strPoly[i] == '+' || strPoly[i] == '-' || i == 0)
+		{
+			if (i == 0)
+				j = 0;
+			else {
+				j = i+1;
+				tempFactor = (char *) realloc(tempFactor, sizeof(char) * (factorLen + 2));
+				tempFactor[factorLen] = strPoly[i];
+				factorLen++;
+			}
+			for(;strPoly[j] != '\0'; j++)
+			{
+				if(strPoly[j] == '+' || strPoly[j] == '-')
+					break;
+				if (readNum){
+					if (strPoly[j] == 'x' || strPoly[j] == 'X')
+					{
+						readNum = 0;
+						readDegree = 1;
+						continue;
+					}else
+					{
+						tempFactor = (char *) realloc(tempFactor, sizeof(char) * (factorLen + 2));
+						tempFactor[factorLen] = strPoly[j];
+						factorLen++;
+					}
+				}
+				if (readDegree)
+				{
+					tempDegree = (char *) realloc(tempDegree, sizeof(char) * (degreeLen + 2));
+					tempDegree[degreeLen] = strPoly[j];
+					degreeLen++;
+				}
+			}
+			if (factorLen != 0)
+			{
+				tempFactor[factorLen] = '\0';
+			}
+			if(degreeLen != 0)
+			{
+				tempDegree[degreeLen] = '\0';
+			}
+			if ((factorLen != 0) && (degreeLen == 0))//если у нас нет коэффициента, но есть степень
+			{
+				polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (polynomial->monomialsCount));
+				polynomial->monomials[polynomial->monomialsCount - 1].degree = 0;
+				polynomial->monomials[polynomial->monomialsCount - 1].factor = atof(tempFactor);
+				polynomial->monomialsCount++;
+			}
+			if ((factorLen == 0) && (degreeLen != 0)) //если у нас нет степени, но есть коэффициент
+			{
+				polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (polynomial->monomialsCount));
+				polynomial->monomials[polynomial->monomialsCount - 1].degree = atoi(tempDegree);
+				polynomial->monomials[polynomial->monomialsCount - 1].factor = 0;				
+				polynomial->monomialsCount++;
+			}
+			if ((factorLen != 0) && (degreeLen != 0))
+			{
+				polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (polynomial->monomialsCount));
+				polynomial->monomials[polynomial->monomialsCount - 1].degree = atoi(tempDegree);
+				polynomial->monomials[polynomial->monomialsCount - 1].factor = atof(tempFactor);				
+				polynomial->monomialsCount++;
+			}
+			readNum = 1;
+			readDegree = 0;
+			factorLen = 0;
+			degreeLen = 0;
+			free(tempFactor);
+			free(tempDegree);
+			tempDegree = NULL;
+			tempFactor = NULL;
+		}
+	}
+	return polynomial;
+}
+char **parseAction(const char *action)
+{
+	char actions[] = {'=', '+', '-', '*', '/', '%'};
+	int len = strlen(action), i = 0, j = 0, count = 0, tempLen;
+	char **actArray = (char **) malloc(sizeof(char*));
+	char **cur_op;
+	//actArray[0] = (char*) malloc(sizeof(char));
+	actArray[0] = NULL;
+	for (i = 0; i <= len; i++)// разбиваем строку на данные. мб c = a + b , c += b; 
+	{
+		if (action[i] == ' ' || action[i] == '\0')
+		{
+			actArray = (char**) realloc(actArray, (count + 2) * sizeof(char*));
+			free(actArray[count]);
+			actArray[count] = (char*) malloc(sizeof(char) * (i - j + 1));
+			//actArray[count+1] = (char*) malloc(sizeof(char*));
+			actArray[count+1] = NULL;
+			for(tempLen = 0; j < i; tempLen++, j++) 
+			{
+				actArray[count][tempLen] = action[j];
+			}
+			actArray[count][tempLen] = '\0';//присваиваем конец строки
+			count++;
+			j++; // увеличиваем на 1, чтобы попасть на элемент за ' '
+		}// прочитали им€
+	}
+	return actArray;
+
+
+	i = 0;
+	cur_op = actArray;
+	while(cur_op[i] != NULL) {
+		printf("%s\n", cur_op[i]);
+		free(cur_op[i]);
+		i++;
+	}
+	system("pause");
+	free(cur_op);
+	cur_op = NULL;
+	//free(actArray);
+	actArray = NULL;
+}
+
+
+int main () {
+	struct PolynomialsArray PolyArray;
+	char ** expression;
+	char *todo;
+	PolyArray.count = 0;
+	PolyArray.Polynomials = NULL;
+
+	//parseAction("c += b");
+	printPolynomial(getPolynomialFromString("100x3-200"));
+	system("pause");
+    return 0;
+}
 /*
 int findMaxDegree(char *strPoly)
 {
@@ -66,152 +327,3 @@ int findMaxDegree(char *strPoly)
 }
 */
 
-void printPolynomial(struct Polynomial* poly)
-{
-	int i = 0, j;
-	while (1)
-	{
-		if((poly->monomials[i].degree == 0) && (poly->monomials[i].factor == 0))
-			break;
-		printf("%f %i\n", poly->monomials[i].factor, poly->monomials[i].degree);
-		i++;
-	}
-
-}
-
-struct Polynomial *parsePolynomial(char *strPoly)
-{
-	int i = 0, j = 0, readNum = 1, readDegree = 0, degreeLen = 0, num = 0, factorLen = 0, monomialCount = 0;
-	char *tempDegree = NULL, *tempFactor = NULL;//
-	struct Polynomial *polynomial = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // объ€вл€ем полином
-	polynomial->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * 2);
-	polynomial->monomials[monomialCount].degree = 0;
-	polynomial->monomials[monomialCount].factor = 0;
-	polynomial->monomials[monomialCount + 1].degree = 0;
-	polynomial->monomials[monomialCount + 1].factor = 0;
-
-	for (i = (strlen(strPoly)); i >= 0; i--) 
-	{
-		if (strPoly[i] == '+' || strPoly[i] == '-' || i == 0)
-		{
-			if (i == 0)
-				j = 0;
-			else {
-				j = i+1;
-				tempFactor = (char *) realloc(tempFactor, sizeof(char) * (factorLen + 2));
-				tempFactor[factorLen] = strPoly[i];
-				factorLen++;
-			}
-			for(;strPoly[j] != '\0'; j++)
-			{
-				if(strPoly[j] == '+' || strPoly[j] == '-')
-					break;
-				if (readNum){
-					if (strPoly[j] == 'x' || strPoly[j] == 'X')
-					{
-						readNum = 0;
-						readDegree = 1;
-						continue;
-					}else
-					{
-						tempFactor = (char *) realloc(tempFactor, sizeof(char) * (factorLen + 2));
-						tempFactor[factorLen] = strPoly[j];
-						factorLen++;
-					}
-				}
-				if (readDegree)
-				{
-					tempDegree = (char *) realloc(tempDegree, sizeof(char) * (degreeLen + 2));
-					tempDegree[degreeLen] = strPoly[j];
-					degreeLen++;
-				}
-			}
-			if (factorLen != 0)
-			{
-				tempFactor[factorLen] = '\0';
-			}
-			if(degreeLen != 0)
-			{
-				tempDegree[degreeLen] = '\0';
-			}
-			if ((factorLen != 0) && (degreeLen == 0))//если у нас нет коэффициента, но есть степень
-			{
-				polynomial->monomials[monomialCount].degree = 0;
-				polynomial->monomials[monomialCount].factor = atof(tempFactor);
-				monomialCount++;
-			}
-			if ((factorLen == 0) && (degreeLen != 0)) //если у нас нет степени, но есть коэффициент
-			{
-				polynomial->monomials[monomialCount].degree = atoi(tempDegree);
-				polynomial->monomials[monomialCount].factor = 0;				
-				monomialCount++;
-			}
-			if ((factorLen != 0) && (degreeLen != 0))
-			{
-				polynomial->monomials[monomialCount].degree = atoi(tempDegree);
-				polynomial->monomials[monomialCount].factor = atof(tempFactor);				
-				monomialCount++;
-			}
-			polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (monomialCount + 2));
-			polynomial->monomials[monomialCount+1].degree = 0;
-			polynomial->monomials[monomialCount+1].factor = 0;
-			readNum = 1;
-			readDegree = 0;
-			factorLen = 0;
-			degreeLen = 0;
-			free(tempFactor);
-			free(tempDegree);
-			tempDegree = NULL;
-			tempFactor = NULL;
-		}
-	}
-	return polynomial;
-}
-void parseAction(const char *action)
-{
-	char actions[] = {'=', '+', '-', '*', '/', '%'};
-	int len = strlen(action), i = 0, j = 0, count = 0, tempLen;
-	char **actArray = (char **) malloc(sizeof(char*));
-	char **cur_op;
-	//actArray[0] = (char*) malloc(sizeof(char));
-	actArray[0] = NULL;
-	for (i = 0; i <= len; i++)// разбиваем строку на данные. мб c = a + b , c += b; 
-	{
-		if (action[i] == ' ' || action[i] == '\0')
-		{
-			actArray = (char**) realloc(actArray, (count + 2) * sizeof(char*));
-			free(actArray[count]);
-			actArray[count] = (char*) malloc(sizeof(char) * (i - j + 1));
-			//actArray[count+1] = (char*) malloc(sizeof(char*));
-			actArray[count+1] = NULL;
-			for(tempLen = 0; j < i; tempLen++, j++) 
-			{
-				actArray[count][tempLen] = action[j];
-			}
-			actArray[count][tempLen] = '\0';//присваиваем конец строки
-			count++;
-			j++; // увеличиваем на 1, чтобы попасть на элемент за ' '
-		}// прочитали им€
-	}
-	i = 0;
-	cur_op = actArray;
-	while(cur_op[i] != NULL) {
-		printf("%s\n", cur_op[i]);
-		free(cur_op[i]);
-		i++;
-	}
-	system("pause");
-	free(cur_op);
-	cur_op = NULL;
-	//free(actArray);
-	actArray = NULL;
-}
-
-
-int main () {
-	
-	//parseAction("c += b");
-	printPolynomial(parsePolynomial("100x3-200"));
-	system("pause");
-    return 0;
-}

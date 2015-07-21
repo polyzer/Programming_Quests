@@ -6,26 +6,95 @@
 
 //переменные начинаюстя с $
 
+int findMaxDegree(struct Polynomial *poly)
+{
+	int i, num = 0;
+	for(i = 0; i < poly->monomialsCount; i++) 
+	{
+		if (poly->monomials[i].degree > num)
+		{
+			num = poly->monomials[i].degree;
+		}
+	}
+	return num;
+}
 struct Polynomial *GCD(struct Polynomial *poly1, struct Poynomial *poly2);
-struct Polynomial *divPolynomials(struct Polynomial *poly1, struct Polynomial *poly2);
-struct Polynomial *mulPolynomials(struct Polynomial *poly1, struct Polynomial *poly2);
+struct Polynomial *divPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
+{
+	//полиномы должны быть отсортированы в обратном порядке - в [0] должен лежать больший.
+	struct Polynomial *answer = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
+	struct Polynomial *residue = subPolynomials(poly1, 0), *temp; // остаток
+	struct Polynomial *subtrahend; // вычитаемое
+	int tempMaxDeg1 = findMaxDegree(poly1), tempMaxDeg2 = findMaxDegree(poly2), i = 0; //макс степени и счетчик
+	answer->monomialsCount = 1;
+	residue->monomialsCount = 1;
 
+	if (tempMaxDeg1 < tempMaxDeg2)
+		return NULL;
+	while(1)
+	{
+		answer->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * answer->monomialsCount);
+		answer->monomials[answer->monomialsCount - 1].factor = residue->monomials[answer->monomialsCount - 1].factor / 
+															   poly2->monomials[answer->monomialsCount - 1].factor;
+		answer->monomials[answer->monomialsCount - 1].degree = residue->monomials[answer->monomialsCount - 1].degree - 
+															   poly2->monomials[answer->monomialsCount - 1].degree;
+		subtrahend = mulPolynomials(residue, answer);
+		temp = subPolynomials(residue, subtrahend);
+		free(residue);// освобождаем старый, он больше не нужен
+		residue = temp;
+		temp = NULL;
+		
+		if (findMaxDegree(poly1) < findMaxDegree(poly2)){
+			free(subtrahend->monomials);
+			free(subtrahend);
+			free(residue->monomials);
+			free(residue);
+			return answer;
+		}
+		answer->monomialsCount++;
+	}
+
+
+}
+struct Polynomial *mulPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
+{
+	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
+	int i = 0, j = 0, number = 0;
+	temp->monomialsCount = poly1->monomialsCount * poly2->monomialsCount;
+	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
+	//теперь добавляем данные из 
+	for(i = 0; i < poly2->monomialsCount; i++)
+	{
+		for(j = 0; j < poly1->monomialsCount; j++)
+		{
+			temp->monomials[number].factor = poly2->monomials[i].factor * poly1->monomials[j].factor;
+			if (poly1->monomials[j].degree == 0){// если в первом полиноме у текущего монома степень == 0
+				temp->monomials[number].degree = poly2->monomials[i].degree;
+			} else if (poly2->monomials[i].degree == 0){ // если нет, но у второго полинома у текущего монома степень == 0
+				temp->monomials[number].degree = poly1->monomials[j].degree;
+			} else{ //если ни то, ни другое, то умножаем степени и записываем
+				temp->monomials[number].degree = poly1->monomials[j].degree * poly2->monomials[i].degree;
+			}
+		}
+	}
+	return temp;
+}
 struct Polynomial *subPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
 {
-	struct Polynomial *temp;
+	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
 	//сначала копируем данные из poly1;
 	int i = 0, j = 0, wasSubstructed = 0;
 	temp->monomialsCount = poly1->monomialsCount;
-	for(i = 0; i < poly1->monomialsCount; i++)//////////////////////////////////////////////////
+	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
+	for(i = 0; i < poly1->monomialsCount; i++)
 	{
-		temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
 		temp->monomials[i].degree = poly1->monomials[i].degree;
 		temp->monomials[i].factor = poly1->monomials[i].factor;
 	}
 	//теперь добавляем данные из 
-	for(i = 0; i < poly2->monomialsCount; i++)//////////////////////////////////////////////////
+	for(i = 0; i < poly2->monomialsCount; i++)
 	{
-		for(j = 0; j < temp->monomialsCount; j++)//////////////////////////////////////////////////
+		for(j = 0; j < temp->monomialsCount; j++)
 		{
 			if(temp->monomials[j].degree == poly2->monomials[i].degree) //здесь будем перебирать j-тые для временного
 			{
@@ -49,20 +118,20 @@ struct Polynomial *subPolynomials(struct Polynomial *poly1, struct Polynomial *p
 }
 struct Polynomial *addPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
 {
-	struct Polynomial *temp;
+	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
 	//сначала копируем данные из poly1;
 	int i = 0, j = 0, wasAdded = 0;
 	temp->monomialsCount = poly1->monomialsCount;
-	for(i = 0; i < poly1->monomialsCount; i++)//////////////////////////////////////////////////
+	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
+	for(i = 0; i < poly1->monomialsCount; i++)
 	{
-		temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
 		temp->monomials[i].degree = poly1->monomials[i].degree;
 		temp->monomials[i].factor = poly1->monomials[i].factor;
 	}
 	//теперь добавляем данные из 
-	for(i = 0; i < poly2->monomialsCount; i++)//////////////////////////////////////////////////
+	for(i = 0; i < poly2->monomialsCount; i++)
 	{
-		for(j = 0; j < temp->monomialsCount; j++)//////////////////////////////////////////////////
+		for(j = 0; j < temp->monomialsCount; j++)
 		{
 			if(temp->monomials[j].degree == poly2->monomials[i].degree) //здесь будем перебирать j-тые для временного
 			{
@@ -177,18 +246,18 @@ struct Polynomial *getPolynomialFromString(char *strPoly)
 			{
 				tempDegree[degreeLen] = '\0';
 			}
-			if ((factorLen != 0) && (degreeLen == 0))//если у нас нет коэффициента, но есть степень
+			if ((factorLen != 0) && (degreeLen == 0))//если у нас нет коэффициента, но есть множитель, то пишем в него 0
 			{
 				polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (polynomial->monomialsCount));
 				polynomial->monomials[polynomial->monomialsCount - 1].degree = 0;
 				polynomial->monomials[polynomial->monomialsCount - 1].factor = atof(tempFactor);
 				polynomial->monomialsCount++;
 			}
-			if ((factorLen == 0) && (degreeLen != 0)) //если у нас нет степени, но есть коэффициент
+			if ((factorLen == 0) && (degreeLen != 0)) //если степень != 0, а множителя не обнаружили, то вводим 1 пример "x2"
 			{
 				polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (polynomial->monomialsCount));
 				polynomial->monomials[polynomial->monomialsCount - 1].degree = atoi(tempDegree);
-				polynomial->monomials[polynomial->monomialsCount - 1].factor = 0;				
+				polynomial->monomials[polynomial->monomialsCount - 1].factor = 1;				
 				polynomial->monomialsCount++;
 			}
 			if ((factorLen != 0) && (degreeLen != 0))

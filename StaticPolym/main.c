@@ -227,13 +227,14 @@ struct Polynomial **findPolynomialByName(struct PolynomialsArray &PolyArr, const
 }
 void deletePolyArray (struct PolynomialsArray &PolyArray)
 {
-	int i = 0;
-	while (PolyArray.Polynomials[i] != NULL) 
+	int i = 0, j = 0;
+	for (i = 0; i < PolyArray.count; i++)
 	{
-		free(PolyArray.Polynomials[i]);
+		free(PolyArray.Polynomials[i]->monomials);
 		i++;
 	}
 	free(PolyArray.Polynomials);
+	free(PolyArray);
 }
 void appendPolynomialToArray(struct PolynomialsArray &PolyArray, struct Polynomial **polynomial) 
 {

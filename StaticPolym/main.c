@@ -18,32 +18,50 @@ int findMaxDegree(struct Polynomial *poly)
 	}
 	return num;
 }
-struct Polynomial *GCD(struct Polynomial *poly1, struct Poynomial *poly2)
+struct Polynomial *GCD(struct Polynomial *poly1, struct Polynomial *poly2)
 {
-	struct Polynomial *answer = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
-	struct Polynomial *temp; // остаток
+	struct Polynomial *quotient = poly2, *tempQ; // то что получилось в рез-те деления
+	struct Polynomial *residue = poly1, *tempR; // остаток
+	while (true)
+	{
+		tempQ = getDivPolynomials(residue, quotient);
+		tempR = getModPolynomials(residue, quotient);
+		if (tempR->monomials[0].factor == 0)
+		{
+			free(tempQ);
+			tempQ = NULL;
+			free(quotient);
+			quotient = 0;
+			free(tempR);
+			tempR = NULL;
+			return residue;
+		} else
+		{
+			residue = tempR;
+			quotient = tempQ;
+		}
+	}
 }
-
 struct Polynomial *getModPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
 {
 	//полиномы должны быть отсортированы в обратном порядке - в [0] должен лежать больший.
-	struct Polynomial *answer = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
+	struct Polynomial *quotitent = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
 	struct Polynomial *residue = subPolynomials(poly1, 0), *temp; // остаток
 	struct Polynomial *subtrahend; // вычитаемое
 	int tempMaxDeg1 = findMaxDegree(poly1), tempMaxDeg2 = findMaxDegree(poly2), i = 0; //макс степени и счетчик
-	answer->monomialsCount = 1;
+	quotitent->monomialsCount = 1;
 	residue->monomialsCount = 1;
 
 	if (tempMaxDeg1 < tempMaxDeg2)
 		return NULL;
 	while(1)
 	{
-		answer->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * answer->monomialsCount);
-		answer->monomials[answer->monomialsCount - 1].factor = residue->monomials[answer->monomialsCount - 1].factor / 
-															   poly2->monomials[answer->monomialsCount - 1].factor;
-		answer->monomials[answer->monomialsCount - 1].degree = residue->monomials[answer->monomialsCount - 1].degree - 
-															   poly2->monomials[answer->monomialsCount - 1].degree;
-		temp = mulPolynomials(residue, answer);
+		quotitent->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * quotitent->monomialsCount);
+		quotitent->monomials[quotitent->monomialsCount - 1].factor = residue->monomials[quotitent->monomialsCount - 1].factor / 
+															   poly2->monomials[quotitent->monomialsCount - 1].factor;
+		quotitent->monomials[quotitent->monomialsCount - 1].degree = residue->monomials[quotitent->monomialsCount - 1].degree - 
+															   poly2->monomials[quotitent->monomialsCount - 1].degree;
+		temp = mulPolynomials(residue, quotitent);
 		free(subtrahend);
 		subtrahend = temp;
 		temp = NULL;
@@ -55,34 +73,33 @@ struct Polynomial *getModPolynomials(struct Polynomial *poly1, struct Polynomial
 		if (findMaxDegree(poly1) < findMaxDegree(poly2)){
 			free(subtrahend->monomials);
 			free(subtrahend);
-			free(answer->monomials);
-			free(answer);
+			free(quotitent->monomials);
+			free(quotitent);
 			return residue;
 		}
-		answer->monomialsCount++;
+		quotitent->monomialsCount++;
 	}
 }
-
 struct Polynomial *getDivPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
 {
 	//полиномы должны быть отсортированы в обратном порядке - в [0] должен лежать больший.
-	struct Polynomial *answer = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
+	struct Polynomial *quotitent = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
 	struct Polynomial *residue = subPolynomials(poly1, 0), *temp; // остаток
 	struct Polynomial *subtrahend; // вычитаемое
 	int tempMaxDeg1 = findMaxDegree(poly1), tempMaxDeg2 = findMaxDegree(poly2), i = 0; //макс степени и счетчик
-	answer->monomialsCount = 1;
+	quotitent->monomialsCount = 1;
 	residue->monomialsCount = 1;
 
 	if (tempMaxDeg1 < tempMaxDeg2)
 		return NULL;
 	while(1)
 	{
-		answer->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * answer->monomialsCount);
-		answer->monomials[answer->monomialsCount - 1].factor = residue->monomials[answer->monomialsCount - 1].factor / 
-															   poly2->monomials[answer->monomialsCount - 1].factor;
-		answer->monomials[answer->monomialsCount - 1].degree = residue->monomials[answer->monomialsCount - 1].degree - 
-															   poly2->monomials[answer->monomialsCount - 1].degree;
-		temp = mulPolynomials(residue, answer);
+		quotitent->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * quotitent->monomialsCount);
+		quotitent->monomials[quotitent->monomialsCount - 1].factor = residue->monomials[quotitent->monomialsCount - 1].factor / 
+															   poly2->monomials[quotitent->monomialsCount - 1].factor;
+		quotitent->monomials[quotitent->monomialsCount - 1].degree = residue->monomials[quotitent->monomialsCount - 1].degree - 
+															   poly2->monomials[quotitent->monomialsCount - 1].degree;
+		temp = mulPolynomials(residue, quotitent);
 		free(subtrahend);
 		subtrahend = temp;
 		temp = NULL;
@@ -96,9 +113,9 @@ struct Polynomial *getDivPolynomials(struct Polynomial *poly1, struct Polynomial
 			free(subtrahend);
 			free(residue->monomials);
 			free(residue);
-			return answer;
+			return quotitent;
 		}
-		answer->monomialsCount++;
+		quotitent->monomialsCount++;
 	}
 }
 struct Polynomial *mulPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)

@@ -18,8 +18,13 @@ int findMaxDegree(struct Polynomial *poly)
 	}
 	return num;
 }
-struct Polynomial *GCD(struct Polynomial *poly1, struct Poynomial *poly2);
-struct Polynomial *divPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
+struct Polynomial *GCD(struct Polynomial *poly1, struct Poynomial *poly2)
+{
+	struct Polynomial *answer = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
+	struct Polynomial *temp; // остаток
+}
+
+struct Polynomial *getModPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
 {
 	//полиномы должны быть отсортированы в обратном порядке - в [0] должен лежать больший.
 	struct Polynomial *answer = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
@@ -38,7 +43,49 @@ struct Polynomial *divPolynomials(struct Polynomial *poly1, struct Polynomial *p
 															   poly2->monomials[answer->monomialsCount - 1].factor;
 		answer->monomials[answer->monomialsCount - 1].degree = residue->monomials[answer->monomialsCount - 1].degree - 
 															   poly2->monomials[answer->monomialsCount - 1].degree;
-		subtrahend = mulPolynomials(residue, answer);
+		temp = mulPolynomials(residue, answer);
+		free(subtrahend);
+		subtrahend = temp;
+		temp = NULL;
+		temp = subPolynomials(residue, subtrahend);
+		free(residue);// освобождаем старый, он больше не нужен
+		residue = temp;
+		temp = NULL;
+		
+		if (findMaxDegree(poly1) < findMaxDegree(poly2)){
+			free(subtrahend->monomials);
+			free(subtrahend);
+			free(answer->monomials);
+			free(answer);
+			return residue;
+		}
+		answer->monomialsCount++;
+	}
+}
+
+struct Polynomial *getDivPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
+{
+	//полиномы должны быть отсортированы в обратном порядке - в [0] должен лежать больший.
+	struct Polynomial *answer = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
+	struct Polynomial *residue = subPolynomials(poly1, 0), *temp; // остаток
+	struct Polynomial *subtrahend; // вычитаемое
+	int tempMaxDeg1 = findMaxDegree(poly1), tempMaxDeg2 = findMaxDegree(poly2), i = 0; //макс степени и счетчик
+	answer->monomialsCount = 1;
+	residue->monomialsCount = 1;
+
+	if (tempMaxDeg1 < tempMaxDeg2)
+		return NULL;
+	while(1)
+	{
+		answer->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * answer->monomialsCount);
+		answer->monomials[answer->monomialsCount - 1].factor = residue->monomials[answer->monomialsCount - 1].factor / 
+															   poly2->monomials[answer->monomialsCount - 1].factor;
+		answer->monomials[answer->monomialsCount - 1].degree = residue->monomials[answer->monomialsCount - 1].degree - 
+															   poly2->monomials[answer->monomialsCount - 1].degree;
+		temp = mulPolynomials(residue, answer);
+		free(subtrahend);
+		subtrahend = temp;
+		temp = NULL;
 		temp = subPolynomials(residue, subtrahend);
 		free(residue);// освобождаем старый, он больше не нужен
 		residue = temp;
@@ -53,8 +100,6 @@ struct Polynomial *divPolynomials(struct Polynomial *poly1, struct Polynomial *p
 		}
 		answer->monomialsCount++;
 	}
-
-
 }
 struct Polynomial *mulPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
 {

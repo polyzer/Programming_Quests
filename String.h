@@ -40,6 +40,10 @@ struct String
 	void setStr(const char *str);
 	char *getStr() const;
 	unsigned int getLength() const;
+	
+	friend std::ostream& operator<<(std::ostream& stream, const String &obj);
+	friend std::istream& operator>>(std::istream& stream, const String &obj);
+
 
 private:
 

@@ -1,3 +1,4 @@
+#include <iostream>
 #include "String.h"
 #include <cstring>
 
@@ -356,3 +357,34 @@ bool String::operator>=(char c)
 	tempchr = NULL;
 	return status;
 }
+
+std::ostream& operator<<(std::ostream &stream, const String &obj)
+{
+	char *tempstr = obj.getStr();
+	stream << tempstr;
+	delete [] tempstr;
+}
+
+std::istream& operator>>(std::istream &stream, const String &obj)
+{
+	int count = 1, len1, len2, buflen;
+	char buf[20], *tempstr1 = new char('\0'), *tempstr2 = new char('\0');
+	while(stream.getline(buf, 20))
+	{
+		len2 = strlen(tempstr1);
+		tempstr2 = tempstr1;
+		buflen = strlen(buf);
+		len1 = buflen + len2;
+		tempstr1 = new char[len1 + 1];
+		for(int i = 0; i < len2; i++) 
+		{
+			tempstr1[i] = tempstr2[i];
+		}
+		for(int i = 0; i < buflen; i++)
+		{
+			tempstr1[len2 + i] = buf[i];
+		}
+		tempstr1[len1] = '\0';
+	}
+}
+

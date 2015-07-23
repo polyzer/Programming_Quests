@@ -18,7 +18,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="quest_7(BMP).cpp" />
+    <ClCompile Include="quest_6(BST).cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FCF069D8-872E-46A6-A603-D0F017C4DB97}</ProjectGuid>

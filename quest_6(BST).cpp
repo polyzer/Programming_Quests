@@ -62,10 +62,10 @@ void BSTFunc()
 			else {
 				struct Node *findNode =	FIND(head, key);
 				if(findNode == NULL)
-					printf("Ёлемента с данным индексом не найдено.");
+					printf("Ёлемента с данным индексом не найдено.\n");
 				else
 				{
-					printf("%s\n", findNode->data.value);
+					printf("%s\n\n", findNode->data.value);
 					findNode = NULL;
 				}
 			}
@@ -78,6 +78,7 @@ void BSTFunc()
 			else{
 				if (!strcmp(head->data.key, key) && head->left == NULL && head->right == NULL){
 					freeNode(&head);
+					head = NULL;
 				}
 				else
 					REMOVE(&head, key);
@@ -85,8 +86,15 @@ void BSTFunc()
 		}
 		if (menu == 4){
 			printf("ќчистка дерева.\n");
-			//удаление
-			//освобождение key, value.
+			while (head != NULL)
+			{
+				if (!strcmp(head->data.key, key) && head->left == NULL && head->right == NULL){
+					freeNode(&head);
+					head = NULL;
+				}
+				else
+					REMOVE(&head, head->data.key);
+			}
 			exit(0);
 		}
 		PrintMenu();
@@ -175,7 +183,7 @@ int INSERT(struct Node *node, const char *key, const char *value)
 void REMOVE(struct Node **head, const char *key)
 {
 	struct Node *cur_node = *head, *right, *left;
-	struct Node *minMoreNode;
+	struct Node *minMoreNode = NULL;
 	while (1){
 		if (!strcmp(cur_node->data.key, key)) 
 		{ //если у текущего нода совпал ключ с заданным
@@ -214,27 +222,29 @@ void REMOVE(struct Node **head, const char *key)
 			}
 			copyNodeData(&cur_node, &minMoreNode);
 			freeNode(&minMoreNode);
-		
+			return;
 		}
 		if (strcmp(cur_node->data.key, key) > 0) 
 		{ //если ключ меньше то идем в левый поднод
-			if (cur_node->left == NULL) 
-			{ //если его еще не существует
-				printf("Ёлемента с заданным ключом не существует");
-			} else 
-			{
+			if (cur_node->left != NULL) 
+			{ //если левый существует
 				cur_node = cur_node->left; // если он уже существует, переходим к нему
 				continue;
+			} else 
+			{
+				printf("Ёлемента с заданным ключом не существует.\n");
+				return;
 			}		
 		} else 
 		{
-			if (cur_node->right == NULL) 
-			{ //если правого еще не существует
-				printf("Ёлемента с заданным ключом не существует");
-			} else 
-			{
+			if(cur_node->right != NULL) 
+			{ //если правый существует
 				cur_node = cur_node->right; // если он уже существует, переходим к нему
 				continue;
+			} else 
+			{
+				printf("Ёлемента с заданным ключом не существует\n");
+				return;
 			}	
 		}
 	}

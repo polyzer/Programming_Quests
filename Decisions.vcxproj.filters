@@ -15,12 +15,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="StaticPolym\main.c">
+    <ClCompile Include="quest_9(StringContainerCPP).cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="String.cpp">
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="StaticPolym\Polynomial.h">
+    <ClInclude Include="String.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
   </ItemGroup>

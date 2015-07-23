@@ -18,10 +18,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="StaticPolym\main.c" />
+    <ClCompile Include="quest_9(StringContainerCPP).cpp">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="String.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="StaticPolym\Polynomial.h" />
+    <ClInclude Include="String.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FCF069D8-872E-46A6-A603-D0F017C4DB97}</ProjectGuid>
@@ -54,7 +57,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <CompileAs>CompileAsC</CompileAs>
+      <CompileAs>CompileAsCpp</CompileAs>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>

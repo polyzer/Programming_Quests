@@ -8,9 +8,11 @@
 #define ID_REDUCE_BRIGHT 1001
 #define ID_TO_BLACK_AND_WHITE 1002
 #define ID_TURN_ON_90_DEGREES 1003
-#define ID_PASTE_TOGETHER 1004
-#define ID_FILE_OPEN 1005
-#define ID_SAVE_BITMAP 1006
+#define ID_HORIZONTAL_MIRROR 1004
+#define ID_VERTICAL_MIRROR 1005
+#define ID_PASTE_TOGETHER 1006
+#define ID_FILE_OPEN 1007
+#define ID_SAVE_BITMAP 1008
 
 LRESULT CALLBACK WndProc (HWND, UINT, WPARAM, LPARAM) ;
 
@@ -79,6 +81,8 @@ int APIENTRY _tWinMain(HINSTANCE This, // Дескриптор текущего приложения
 		AppendMenu(hPopupMenuEdit, MF_STRING, ID_REDUCE_BRIGHT, _T("Уменьшить яркость"));
 		AppendMenu(hPopupMenuEdit, MF_STRING, ID_TO_BLACK_AND_WHITE, _T("В черно-белое"));
 		AppendMenu(hPopupMenuEdit, MF_STRING, ID_TURN_ON_90_DEGREES, _T("Поворот на 90"));
+		AppendMenu(hPopupMenuEdit, MF_STRING, ID_HORIZONTAL_MIRROR, _T("Отразить по горизонтали"));
+		AppendMenu(hPopupMenuEdit, MF_STRING, ID_VERTICAL_MIRROR, _T("Отразить по вертикали"));
 		AppendMenu(hPopupMenuEdit, MF_STRING, ID_PASTE_TOGETHER, _T("Склеить"));
      }
 
@@ -162,6 +166,15 @@ lParam)
 			ChangeBMP(&hBitmap, &bm, &memBit, 4);
 			InvalidateRect(hWnd, NULL, TRUE);
 		break;
+		case ID_HORIZONTAL_MIRROR:
+			ChangeBMP(&hBitmap, &bm, &memBit, 5);
+			InvalidateRect(hWnd, NULL, TRUE);
+		break;
+		case ID_VERTICAL_MIRROR:
+			ChangeBMP(&hBitmap, &bm, &memBit, 6);
+			InvalidateRect(hWnd, NULL, TRUE);
+		break;
+
 		case ID_PASTE_TOGETHER:
 			if (TwoImages > 0){
 				pasteBitMapsTogether(&hBitmap, &bm, &memBit, &hBitmap2, &bm2, &memBit2);
@@ -288,9 +301,12 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
   //2 - increase brightness
   //3 - to black-white image
   //4 - turning 90
-  //5 - paste 2 images together
-  int temp = 0, shift = 0,  i = 0, j = 0, k = 0, incr = 10, decr = 10,R = 0, G = 0, B = 0,  PixelBytesSize = 0;
-  BYTE *tempLine, *Lines;
+  //5 - horizontal mirror reflection
+  //6 - vertical mirror reflection
+  //7 - paste 2 images together
+  int temp = 0, shift = 0,  i = 0, j = 0, k = 0, incr = 10, decr = 10, 
+	  PixelBytesSize = 0, border = 0;
+  BYTE *tempLine, *Lines, *tempLine1 = NULL, *tempLine2 = NULL, RGB1[3], RGB2[3];
   struct tagBITMAPINFOHEADER bInfo;
   {
 	  bInfo.biSize = sizeof(bInfo);
@@ -404,6 +420,51 @@ void ChangeBMP(HBITMAP *hBMP, BITMAP *BitMap, HDC *memBit, int type)
 	  Lines = NULL;
 	  free(tempLine);
   break;
+
+  case 5:
+   tempLine = (BYTE *) malloc(bInfo.biWidth * PixelBytesSize * sizeof(BYTE));
+   for (i = 0; i < bInfo.biHeight; i++) 
+   {
+		GetDIBits(*memBit, *hBMP, i, 1, tempLine,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+		for(j = 0; j < bInfo.biWidth / 2 * PixelBytesSize; j+= PixelBytesSize) 
+		{
+			RGB1[0] = tempLine[j];
+			RGB1[1] = tempLine[j+1];
+			RGB1[2] = tempLine[j+2];
+
+			RGB2[0] = tempLine[bInfo.biWidth * PixelBytesSize - (1) * PixelBytesSize - j];
+			RGB2[1] = tempLine[bInfo.biWidth * PixelBytesSize - (1) * PixelBytesSize - j + 1];
+			RGB2[2] = tempLine[bInfo.biWidth * PixelBytesSize - (1) * PixelBytesSize - j + 2];
+
+			tempLine[j] = RGB2[0];
+			tempLine[j+1] = RGB2[1];
+			tempLine[j+2] = RGB2[2];
+
+			tempLine[bInfo.biWidth * PixelBytesSize - (1) * PixelBytesSize - j] = RGB1[0];
+			tempLine[bInfo.biWidth * PixelBytesSize - (1) * PixelBytesSize - j + 1] = RGB1[1];
+			tempLine[bInfo.biWidth * PixelBytesSize - (1) * PixelBytesSize - j + 2] = RGB1[2];
+
+		}			
+		SetDIBits(*memBit, *hBMP, i, 1, tempLine, (LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+   }
+	free (tempLine);
+  break;
+
+   case 6:
+   tempLine1 = (BYTE *) malloc(bInfo.biWidth * (bInfo.biBitCount/8) * sizeof(BYTE));
+   tempLine2 = (BYTE *) malloc(bInfo.biWidth * (bInfo.biBitCount/8) * sizeof(BYTE));
+   for (i = 0; i < (bInfo.biHeight / 2); i++) 
+   {
+		GetDIBits(*memBit, *hBMP, i, 1, tempLine1,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+		GetDIBits(*memBit, *hBMP, bInfo.biHeight - 1 - i, 1, tempLine2,(LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+
+		SetDIBits(*memBit, *hBMP, i, 1, tempLine2, (LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+		SetDIBits(*memBit, *hBMP, bInfo.biHeight - 1 - i, 1, tempLine1, (LPBITMAPINFO) &bInfo, DIB_RGB_COLORS);
+   }
+	free (tempLine1);
+	free (tempLine2);
+   break;
+  
   }
 
 

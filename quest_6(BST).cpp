@@ -117,7 +117,7 @@ struct Node *FIND(struct Node *node, const char *key)
 		{ //если у текущего нода совпал ключ с заданным
 			return cur_node;
 		}
-		if (strcmp(cur_node->data.key, key) > 0) 
+		if (strcmp(key, cur_node->data.key) < 0) 
 		{ //если ключ меньше то идем в левый поднод
 			if (cur_node->left == NULL) 
 			{ //если его еще не существует
@@ -152,7 +152,7 @@ int INSERT(struct Node *node, const char *key, const char *value)
 			strcpy(cur_node->data.value, value); //заменяем 
 			return 0; // и выходим
 		}
-		if (strcmp(cur_node->data.key, key) > 0) 
+		if (strcmp(key, cur_node->data.key) < 0) 
 		{ //если ключ меньше то идем в левый поднод
 			if (cur_node->left == NULL) 
 			{ //если его еще не существует
@@ -224,26 +224,32 @@ void REMOVE(struct Node **head, const char *key)
 			freeNode(&minMoreNode);
 			return;
 		}
+		left = cur_node->left;
+		right = cur_node->right;
 		if (strcmp(cur_node->data.key, key) > 0) 
 		{ //если ключ меньше то идем в левый поднод
-			if (cur_node->left != NULL) 
+			if (left != NULL) 
 			{ //если левый существует
 				cur_node = cur_node->left; // если он уже существует, переходим к нему
 				continue;
 			} else 
 			{
 				printf("Элемента с заданным ключом не существует.\n");
+				left = NULL;
+				right = NULL;
 				return;
 			}		
 		} else 
 		{
-			if(cur_node->right != NULL) 
+			if(right != NULL) 
 			{ //если правый существует
 				cur_node = cur_node->right; // если он уже существует, переходим к нему
 				continue;
 			} else 
 			{
 				printf("Элемента с заданным ключом не существует\n");
+				left = NULL;
+				right = NULL;
 				return;
 			}	
 		}
@@ -271,9 +277,9 @@ void setParent(struct Node **node, struct Node **parent){
 
 void copyNode(struct Node **node, struct Node **CopyNode)
 {
-	(*node)->data.key = (char *) malloc((strlen((*CopyNode)->data.key + 1) * sizeof(char))); //место под key (+1) - для \0
+	(*node)->data.key = (char *) malloc((strlen((*CopyNode)->data.key) + 1) * sizeof(char)); //место под key (+1) - для \0
 	strcpy((*node)->data.key, (*CopyNode)->data.key);//копируем key
-	(*node)->data.value = (char *) malloc((strlen((*CopyNode)->data.value + 1) * sizeof(char))); //место под value (+ 1) - для \0
+	(*node)->data.value = (char *) malloc((strlen((*CopyNode)->data.value) + 1) * sizeof(char)); //место под value (+ 1) - для \0
 	strcpy((*node)->data.value, (*CopyNode)->data.value); // копируем value
 	(*node)->left = (*CopyNode)->left;//указатель на левого потомка
 	(*node)->right = (*CopyNode)->right; // указатель на правого потомка
@@ -284,7 +290,6 @@ void copyNodeData(struct Node **node, struct Node **CopyNode)
 	strcpy((*node)->data.key, (*CopyNode)->data.key);//копируем key
 	(*node)->data.value = (char *) malloc((strlen((*CopyNode)->data.value + 1) * sizeof(char))); //место под value (+ 1) - для \0
 	strcpy((*node)->data.value, (*CopyNode)->data.value); // копируем value
-
 }
 void freeNode(struct Node **node)
 {
@@ -310,7 +315,7 @@ struct Node *findMinBiggerNode(struct Node *node)
 	while (1)
 	{
 		if (cur_node->left != NULL)
-			cur_node->left;
+			cur_node = cur_node->left;
 		else
 			return cur_node;
 	}

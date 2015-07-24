@@ -18,7 +18,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="quest_6(BST).cpp" />
+    <ClCompile Include="StaticPolym\main.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FCF069D8-872E-46A6-A603-D0F017C4DB97}</ProjectGuid>

@@ -5,7 +5,50 @@
 
 
 //переменные начинаюстя с $
+void sortToBiggerPolynomial(struct Polynomial **poly)
+{
+	int i = 0, j = 0;
+	struct Monomial mono;
+	for (i = 0; i < (*poly)->monomialsCount; i++) 
+	{
+		for( j = i; j < (*poly)->monomialsCount; j++) 
+		{
+			if((*poly)->monomials[j].degree > (*poly)->monomials[i].degree)
+			{
+				mono.degree = (*poly)->monomials[i].degree;
+				mono.factor = (*poly)->monomials[i].factor;
 
+				(*poly)->monomials[i].degree = (*poly)->monomials[j].degree;
+				(*poly)->monomials[i].factor = (*poly)->monomials[j].factor;
+
+				(*poly)->monomials[j].degree = mono.degree;
+				(*poly)->monomials[j].factor = mono.factor;
+			}
+		}
+	}
+}
+void sortToLessPolynomial(struct Polynomial **poly)
+{
+	int i = 0, j = 0;
+	struct Monomial mono;
+	for (i = 0; i < (*poly)->monomialsCount; i++) 
+	{
+		for( j = i; j < (*poly)->monomialsCount; j++) 
+		{
+			if((*poly)->monomials[j].degree < (*poly)->monomials[i].degree)
+			{
+				mono.degree = (*poly)->monomials[i].degree;
+				mono.factor = (*poly)->monomials[i].factor;
+
+				(*poly)->monomials[i].degree = (*poly)->monomials[j].degree;
+				(*poly)->monomials[i].factor = (*poly)->monomials[j].factor;
+
+				(*poly)->monomials[j].degree = mono.degree;
+				(*poly)->monomials[j].factor = mono.factor;
+			}
+		}
+	}
+}
 int findMaxDegree(struct Polynomial *poly)
 {
 	int i, num = 0;
@@ -22,7 +65,7 @@ struct Polynomial *GCD(struct Polynomial *poly1, struct Polynomial *poly2)
 {
 	struct Polynomial *quotient = poly2, *tempQ; // то что получилось в рез-те деления
 	struct Polynomial *residue = poly1, *tempR; // остаток
-	while (true)
+	while (1)
 	{
 		tempQ = getDivPolynomials(residue, quotient);
 		tempR = getModPolynomials(residue, quotient);
@@ -49,6 +92,9 @@ struct Polynomial *getModPolynomials(struct Polynomial *poly1, struct Polynomial
 	struct Polynomial *residue = subPolynomials(poly1, 0), *temp; // остаток
 	struct Polynomial *subtrahend; // вычитаемое
 	int tempMaxDeg1 = findMaxDegree(poly1), tempMaxDeg2 = findMaxDegree(poly2), i = 0; //макс степени и счетчик
+
+	sortToLessPolynomial(&poly1); //mission complete
+	sortToLessPolynomial(&poly2);
 	quotitent->monomialsCount = 1;
 	residue->monomialsCount = 1;
 
@@ -84,10 +130,14 @@ struct Polynomial *getDivPolynomials(struct Polynomial *poly1, struct Polynomial
 {
 	//полиномы должны быть отсортированы в обратном порядке - в [0] должен лежать больший.
 	struct Polynomial *quotitent = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
-	struct Polynomial *residue = subPolynomials(poly1, 0), *temp; // остаток
-	struct Polynomial *subtrahend; // вычитаемое
+	struct Polynomial *residue, *temp; // остаток
+	struct Polynomial *subtrahend = NULL; // вычитаемое
 	int tempMaxDeg1 = findMaxDegree(poly1), tempMaxDeg2 = findMaxDegree(poly2), i = 0; //макс степени и счетчик
+	sortToLessPolynomial(&poly1);
+	sortToLessPolynomial(&poly2);
+	quotitent->monomials = NULL;
 	quotitent->monomialsCount = 1;
+	residue = subPolynomials(poly1, poly2);
 	residue->monomialsCount = 1;
 
 	if (tempMaxDeg1 < tempMaxDeg2)
@@ -107,8 +157,8 @@ struct Polynomial *getDivPolynomials(struct Polynomial *poly1, struct Polynomial
 		free(residue);// освобождаем старый, он больше не нужен
 		residue = temp;
 		temp = NULL;
-		
-		if (findMaxDegree(poly1) < findMaxDegree(poly2)){
+
+		if (findMaxDegree(residue) < findMaxDegree(poly2)){
 			free(subtrahend->monomials);
 			free(subtrahend);
 			free(residue->monomials);
@@ -122,6 +172,7 @@ struct Polynomial *mulPolynomials(struct Polynomial *poly1, struct Polynomial *p
 {
 	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
 	int i = 0, j = 0, number = 0;
+	temp->monomials = NULL;
 	temp->monomialsCount = poly1->monomialsCount * poly2->monomialsCount;
 	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
 	//теперь добавляем данные из 
@@ -146,6 +197,7 @@ struct Polynomial *subPolynomials(struct Polynomial *poly1, struct Polynomial *p
 	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
 	//сначала копируем данные из poly1;
 	int i = 0, j = 0, wasSubstructed = 0;
+	temp->monomials = NULL;
 	temp->monomialsCount = poly1->monomialsCount;
 	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
 	for(i = 0; i < poly1->monomialsCount; i++)
@@ -183,6 +235,7 @@ struct Polynomial *addPolynomials(struct Polynomial *poly1, struct Polynomial *p
 	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
 	//сначала копируем данные из poly1;
 	int i = 0, j = 0, wasAdded = 0;
+	temp->monomials = NULL;
 	temp->monomialsCount = poly1->monomialsCount;
 	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
 	for(i = 0; i < poly1->monomialsCount; i++)
@@ -202,8 +255,9 @@ struct Polynomial *addPolynomials(struct Polynomial *poly1, struct Polynomial *p
 				break;
 			}
 		}
-		if (wasAdded > 0)
+		if (wasAdded > 0){
 			wasAdded = 0;
+		}
 		else 
 		{
 			temp->monomialsCount++;
@@ -214,33 +268,33 @@ struct Polynomial *addPolynomials(struct Polynomial *poly1, struct Polynomial *p
 	}
 	return temp;
 }
-struct Polynomial **findPolynomialByName(struct PolynomialsArray &PolyArr, const char *name)
+struct Polynomial **findPolynomialByName(struct PolynomialsArray *PolyArr, const char *name)
 {
 	int i;
-	for (i = 0; i <= PolyArr.count; i++) 
+	for (i = 0; i <= PolyArr->count; i++) 
 	{
-		if (!strcmp(PolyArr.Polynomials[i]->name, name)){
-			return &PolyArr.Polynomials[i];
+		if (!strcmp(PolyArr->Polynomials[i]->name, name)){
+			return &PolyArr->Polynomials[i];
 		}
 	}
 	return NULL;
 }
-void deletePolyArray (struct PolynomialsArray &PolyArray)
+void deletePolyArray (struct PolynomialsArray *PolyArray)
 {
 	int i = 0, j = 0;
-	for (i = 0; i < PolyArray.count; i++)
+	for (i = 0; i < PolyArray->count; i++)
 	{
-		free(PolyArray.Polynomials[i]->monomials);
+		free(PolyArray->Polynomials[i]->monomials);
 		i++;
 	}
-	free(PolyArray.Polynomials);
+	free(PolyArray->Polynomials);
 	free(PolyArray);
 }
-void appendPolynomialToArray(struct PolynomialsArray &PolyArray, struct Polynomial **polynomial) 
+void appendPolynomialToArray(struct PolynomialsArray *PolyArray, struct Polynomial **polynomial) 
 {
-	PolyArray.Polynomials = (struct Polynomial **) realloc(PolyArray.Polynomials, sizeof(struct Polynomial *) * (PolyArray.count + 1));
-	PolyArray.Polynomials[PolyArray.count] = *polynomial;
-	PolyArray.count++;
+	PolyArray->Polynomials = (struct Polynomial **) realloc(PolyArray->Polynomials, sizeof(struct Polynomial *) * (PolyArray->count + 1));
+	PolyArray->Polynomials[PolyArray->count] = *polynomial;
+	PolyArray->count++;
 }
 int identificationVariable(char *expression)
 {
@@ -251,32 +305,39 @@ int identificationVariable(char *expression)
 }
 void printPolynomial(struct Polynomial* poly)
 {
-	int i = 0, j;
+	int i = 0;
+	sortToLessPolynomial(&poly);
 	for(i = 0; i < poly->monomialsCount; i++)
 	{
-		printf("%f %i\n", poly->monomials[i].factor, poly->monomials[i].degree);
+		if (i != (poly->monomialsCount - 1)){
+			printf("%fx%i+", poly->monomials[i].factor, poly->monomials[i].degree);
+		}
+		else{
+			if(poly->monomials[i].degree == 0)
+			{
+				printf("%f\n", poly->monomials[i].factor);				
+			}else
+			{
+				printf("%fx%i\n", poly->monomials[i].factor, poly->monomials[i].degree);
+			}
+		}
 	}
-
 }
 struct Polynomial *getPolynomialFromString(char *strPoly)
 {
 	int i = 0, j = 0, readNum = 1, readDegree = 0, degreeLen = 0, num = 0, factorLen = 0;
 	char *tempDegree = NULL, *tempFactor = NULL;//
 	struct Polynomial *polynomial = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // объявляем полином
-	polynomial->monomialsCount = 1;
 	polynomial->monomials = NULL;
+	polynomial->monomialsCount = 0;
 	for (i = (strlen(strPoly)); i >= 0; i--) 
 	{
 		if (strPoly[i] == '+' || strPoly[i] == '-' || i == 0)
 		{
-			if (i == 0)
-				j = 0;
-			else {
-				j = i+1;
-				tempFactor = (char *) realloc(tempFactor, sizeof(char) * (factorLen + 2));
-				tempFactor[factorLen] = strPoly[i];
-				factorLen++;
-			}
+			j = i+1;
+			tempFactor = (char *) realloc(tempFactor, sizeof(char) * (factorLen + 2));
+			tempFactor[factorLen] = strPoly[i];
+			factorLen++;
 			for(;strPoly[j] != '\0'; j++)
 			{
 				if(strPoly[j] == '+' || strPoly[j] == '-')
@@ -311,24 +372,24 @@ struct Polynomial *getPolynomialFromString(char *strPoly)
 			}
 			if ((factorLen != 0) && (degreeLen == 0))//если у нас нет коэффициента, но есть множитель, то пишем в него 0
 			{
+				polynomial->monomialsCount++;
 				polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (polynomial->monomialsCount));
 				polynomial->monomials[polynomial->monomialsCount - 1].degree = 0;
 				polynomial->monomials[polynomial->monomialsCount - 1].factor = atof(tempFactor);
-				polynomial->monomialsCount++;
 			}
 			if ((factorLen == 0) && (degreeLen != 0)) //если степень != 0, а множителя не обнаружили, то вводим 1 пример "x2"
 			{
+				polynomial->monomialsCount++;
 				polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (polynomial->monomialsCount));
 				polynomial->monomials[polynomial->monomialsCount - 1].degree = atoi(tempDegree);
 				polynomial->monomials[polynomial->monomialsCount - 1].factor = 1;				
-				polynomial->monomialsCount++;
 			}
 			if ((factorLen != 0) && (degreeLen != 0))
 			{
+				polynomial->monomialsCount++;
 				polynomial->monomials = (struct Monomial *) realloc(polynomial->monomials, sizeof(struct Monomial) * (polynomial->monomialsCount));
 				polynomial->monomials[polynomial->monomialsCount - 1].degree = atoi(tempDegree);
 				polynomial->monomials[polynomial->monomialsCount - 1].factor = atof(tempFactor);				
-				polynomial->monomialsCount++;
 			}
 			readNum = 1;
 			readDegree = 0;
@@ -370,7 +431,6 @@ char **parseAction(const char *action)
 	}
 	return actArray;
 
-
 	i = 0;
 	cur_op = actArray;
 	while(cur_op[i] != NULL) {
@@ -384,18 +444,48 @@ char **parseAction(const char *action)
 	//free(actArray);
 	actArray = NULL;
 }
+struct Polynomial *justDoIt(struct Polynomial *poly1, unsigned short int operation, struct Polynomial *poly2)
+{
+	switch(operation)
+	{
+		case 1: //сложение
+			
+		break;
+		case 2: // вычитание
+		
+		break;
+		case 3: // умножение
 
+		break;
+		case 4: // деление
+		
+		break;
+		case 5: // остаток от деления
+		
+		break;
+		case 6: // НОД
+		
+		break;
+	}
+	return poly1;
+}
 
 int main () {
 	struct PolynomialsArray PolyArray;
-	char ** expression;
-	char *todo;
+	char buf[1000];
+	char **expressions = NULL;
+	struct Polynomial *tempPoly1, *tempPoly2, *tempPoly3;
 	PolyArray.count = 0;
 	PolyArray.Polynomials = NULL;
+	
 
-	//parseAction("c += b");
-	printPolynomial(getPolynomialFromString("100x3-200"));
+	tempPoly1 = getPolynomialFromString("-200");
+	tempPoly2 = getPolynomialFromString("100");
+	tempPoly3 = getDivPolynomials(tempPoly1, tempPoly2);
+	printPolynomial(tempPoly3);
 	system("pause");
+	//how it works?
+	//
     return 0;
 }
 /*

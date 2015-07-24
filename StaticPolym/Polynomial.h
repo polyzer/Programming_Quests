@@ -1,28 +1,30 @@
 struct Monomial
 {
 	double factor;
-	int degree;
+	unsigned int degree;
 };
 
 struct Polynomial
 {
 	struct Monomial *monomials;
 	char *name;
-	int monomialsCount;
+	unsigned int monomialsCount;
 };
 
 struct PolynomialsArray
 {
 	struct Polynomial **Polynomials;
-	int count;
+	unsigned int count;
 };
 
+struct Polynomial *cleapUp(struct Polynomial **poly);
 void sortToBiggerPolynomial(struct Polynomial **poly);
 void sortToLessPolynomial(struct Polynomial **poly);
 int findMaxDegree(struct Polynomial *poly);
 struct Polynomial *GCD(struct Polynomial *poly1, struct Polynomial *poly2);
 struct Polynomial *getModPolynomials(struct Polynomial *poly1, struct Polynomial *poly2);
 struct Polynomial *getDivPolynomials(struct Polynomial *poly1, struct Polynomial *poly2);
+struct Polynomial *mulPolyMono(struct Polynomial *poly1, struct Monomial *mono1);
 struct Polynomial *mulPolynomials(struct Polynomial *poly1, struct Polynomial *poly2);
 struct Polynomial *subPolynomials(struct Polynomial *poly1, struct Polynomial *poly2);
 struct Polynomial *addPolynomials(struct Polynomial *poly1, struct Polynomial *poly2);

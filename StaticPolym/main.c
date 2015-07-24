@@ -5,6 +5,36 @@
 
 
 //переменные начинаюстя с $
+struct Polynomial *cleanUp(struct Polynomial **poly)
+{
+	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
+	unsigned int i = 0, j = 0, number = 0;
+	temp->monomials = NULL;
+	temp->monomialsCount = 0;
+	for(i = 0; i < (*poly)->monomialsCount; i++)
+	{
+		if((*poly)->monomials[i].factor == 0)
+		{
+			continue;
+		}else
+		{
+			temp->monomialsCount++;
+			temp->monomials = (struct Monomial *) realloc(temp->monomials, temp->monomialsCount * sizeof(struct Monomial));
+			temp->monomials[temp->monomialsCount-1].degree = (*poly)->monomials[i].degree;
+			temp->monomials[temp->monomialsCount-1].factor = (*poly)->monomials[i].factor;
+		}
+	}
+	if ((temp->monomials == NULL) && (temp->monomialsCount == 0))
+	{
+		temp->monomialsCount = 1;
+		temp->monomials = (struct Monomial *) realloc(temp->monomials, temp->monomialsCount * sizeof(struct Monomial));
+		temp->monomials[0].degree = 0;
+		temp->monomials[0].factor = 0;
+	}
+	free((*poly));
+	*poly = NULL;
+	return temp;
+}
 void sortToBiggerPolynomial(struct Polynomial **poly)
 {
 	int i = 0, j = 0;
@@ -13,7 +43,7 @@ void sortToBiggerPolynomial(struct Polynomial **poly)
 	{
 		for( j = i; j < (*poly)->monomialsCount; j++) 
 		{
-			if((*poly)->monomials[j].degree > (*poly)->monomials[i].degree)
+			if((*poly)->monomials[i].degree > (*poly)->monomials[j].degree)
 			{
 				mono.degree = (*poly)->monomials[i].degree;
 				mono.factor = (*poly)->monomials[i].factor;
@@ -35,7 +65,7 @@ void sortToLessPolynomial(struct Polynomial **poly)
 	{
 		for( j = i; j < (*poly)->monomialsCount; j++) 
 		{
-			if((*poly)->monomials[j].degree < (*poly)->monomials[i].degree)
+			if((*poly)->monomials[i].degree < (*poly)->monomials[j].degree)
 			{
 				mono.degree = (*poly)->monomials[i].degree;
 				mono.factor = (*poly)->monomials[i].factor;
@@ -51,7 +81,7 @@ void sortToLessPolynomial(struct Polynomial **poly)
 }
 int findMaxDegree(struct Polynomial *poly)
 {
-	int i, num = 0;
+	unsigned int i, num = 0;
 	for(i = 0; i < poly->monomialsCount; i++) 
 	{
 		if (poly->monomials[i].degree > num)
@@ -89,39 +119,44 @@ struct Polynomial *getModPolynomials(struct Polynomial *poly1, struct Polynomial
 {
 	//полиномы должны быть отсортированы в обратном порядке - в [0] должен лежать больший.
 	struct Polynomial *quotitent = (struct Polynomial *) malloc(sizeof(struct Polynomial)); // то что получилось в рез-те деления
-	struct Polynomial *residue = subPolynomials(poly1, 0), *temp; // остаток
-	struct Polynomial *subtrahend; // вычитаемое
+	struct Polynomial *residue, *temp; // остаток
+	struct Polynomial *subtrahend = NULL; // вычитаемое
 	int tempMaxDeg1 = findMaxDegree(poly1), tempMaxDeg2 = findMaxDegree(poly2), i = 0; //макс степени и счетчик
-
-	sortToLessPolynomial(&poly1); //mission complete
+	sortToLessPolynomial(&poly1);
 	sortToLessPolynomial(&poly2);
+	quotitent->monomials = NULL;
 	quotitent->monomialsCount = 1;
-	residue->monomialsCount = 1;
+	residue = poly1;// вначале нужно так.
 
 	if (tempMaxDeg1 < tempMaxDeg2)
 		return NULL;
 	while(1)
 	{
-		quotitent->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * quotitent->monomialsCount);
-		quotitent->monomials[quotitent->monomialsCount - 1].factor = residue->monomials[quotitent->monomialsCount - 1].factor / 
-															   poly2->monomials[quotitent->monomialsCount - 1].factor;
-		quotitent->monomials[quotitent->monomialsCount - 1].degree = residue->monomials[quotitent->monomialsCount - 1].degree - 
-															   poly2->monomials[quotitent->monomialsCount - 1].degree;
-		temp = mulPolynomials(residue, quotitent);
+		quotitent->monomials = (struct Monomial *) realloc(quotitent->monomials, sizeof(struct Monomial) * quotitent->monomialsCount);
+		quotitent->monomials[quotitent->monomialsCount - 1].factor = residue->monomials[0].factor / 
+															   poly2->monomials[0].factor; //0 - потому, что в младшем индексе хранится 
+																						   //наибольшее значение
+		quotitent->monomials[quotitent->monomialsCount - 1].degree = residue->monomials[0].degree - 
+															   poly2->monomials[0].degree;
+		temp = mulPolyMono(poly2, &quotitent->monomials[quotitent->monomialsCount - 1]);
 		free(subtrahend);
 		subtrahend = temp;
 		temp = NULL;
 		temp = subPolynomials(residue, subtrahend);
-		free(residue);// освобождаем старый, он больше не нужен
+		if (residue != poly1)
+		{
+			free(residue);// освобождаем старый, он больше не нужен
+		}	
 		residue = temp;
 		temp = NULL;
-		
-		if (findMaxDegree(poly1) < findMaxDegree(poly2)){
+		residue = cleanUp(&residue);
+		sortToLessPolynomial(&residue);
+		if ((findMaxDegree(residue) < findMaxDegree(poly2)) || (residue->monomials[residue->monomialsCount-1].factor == 0)){
 			free(subtrahend->monomials);
 			free(subtrahend);
-			free(quotitent->monomials);
-			free(quotitent);
-			return residue;
+			free(residue->monomials);
+			free(residue);
+			return quotitent;
 		}
 		quotitent->monomialsCount++;
 	}
@@ -137,28 +172,32 @@ struct Polynomial *getDivPolynomials(struct Polynomial *poly1, struct Polynomial
 	sortToLessPolynomial(&poly2);
 	quotitent->monomials = NULL;
 	quotitent->monomialsCount = 1;
-	residue = subPolynomials(poly1, poly2);
-	residue->monomialsCount = 1;
+	residue = poly1;// вначале нужно так.
 
 	if (tempMaxDeg1 < tempMaxDeg2)
 		return NULL;
 	while(1)
 	{
-		quotitent->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * quotitent->monomialsCount);
-		quotitent->monomials[quotitent->monomialsCount - 1].factor = residue->monomials[quotitent->monomialsCount - 1].factor / 
-															   poly2->monomials[quotitent->monomialsCount - 1].factor;
-		quotitent->monomials[quotitent->monomialsCount - 1].degree = residue->monomials[quotitent->monomialsCount - 1].degree - 
-															   poly2->monomials[quotitent->monomialsCount - 1].degree;
-		temp = mulPolynomials(residue, quotitent);
+		quotitent->monomials = (struct Monomial *) realloc(quotitent->monomials, sizeof(struct Monomial) * quotitent->monomialsCount);
+		quotitent->monomials[quotitent->monomialsCount - 1].factor = residue->monomials[0].factor / 
+															   poly2->monomials[0].factor; //0 - потому, что в младшем индексе хранится 
+																						   //наибольшее значение
+		quotitent->monomials[quotitent->monomialsCount - 1].degree = residue->monomials[0].degree - 
+															   poly2->monomials[0].degree;
+		temp = mulPolyMono(poly2, &quotitent->monomials[quotitent->monomialsCount - 1]);
 		free(subtrahend);
 		subtrahend = temp;
 		temp = NULL;
 		temp = subPolynomials(residue, subtrahend);
-		free(residue);// освобождаем старый, он больше не нужен
+		if (residue != poly1)
+		{
+			free(residue);// освобождаем старый, он больше не нужен
+		}	
 		residue = temp;
 		temp = NULL;
-
-		if (findMaxDegree(residue) < findMaxDegree(poly2)){
+		residue = cleanUp(&residue);
+		sortToLessPolynomial(&residue);
+		if ((findMaxDegree(residue) < findMaxDegree(poly2)) || (residue->monomials[residue->monomialsCount-1].factor == 0)){
 			free(subtrahend->monomials);
 			free(subtrahend);
 			free(residue->monomials);
@@ -168,10 +207,25 @@ struct Polynomial *getDivPolynomials(struct Polynomial *poly1, struct Polynomial
 		quotitent->monomialsCount++;
 	}
 }
+struct Polynomial *mulPolyMono(struct Polynomial *poly1, struct Monomial *mono1)
+{
+	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
+	unsigned int i = 0, j = 0, number = 0;	
+	temp->monomials = NULL;
+	temp->monomialsCount = poly1->monomialsCount;
+	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount));
+	
+	for(i = 0; i < temp->monomialsCount; i++)
+	{
+		temp->monomials[i].degree = poly1->monomials[i].degree + mono1->degree;
+		temp->monomials[i].factor = poly1->monomials[i].factor * mono1->factor;
+	}
+	return temp;
+}
 struct Polynomial *mulPolynomials(struct Polynomial *poly1, struct Polynomial *poly2)
 {
 	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
-	int i = 0, j = 0, number = 0;
+	unsigned int i = 0, j = 0, number = 0;
 	temp->monomials = NULL;
 	temp->monomialsCount = poly1->monomialsCount * poly2->monomialsCount;
 	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
@@ -181,13 +235,7 @@ struct Polynomial *mulPolynomials(struct Polynomial *poly1, struct Polynomial *p
 		for(j = 0; j < poly1->monomialsCount; j++)
 		{
 			temp->monomials[number].factor = poly2->monomials[i].factor * poly1->monomials[j].factor;
-			if (poly1->monomials[j].degree == 0){// если в первом полиноме у текущего монома степень == 0
-				temp->monomials[number].degree = poly2->monomials[i].degree;
-			} else if (poly2->monomials[i].degree == 0){ // если нет, но у второго полинома у текущего монома степень == 0
-				temp->monomials[number].degree = poly1->monomials[j].degree;
-			} else{ //если ни то, ни другое, то умножаем степени и записываем
-				temp->monomials[number].degree = poly1->monomials[j].degree * poly2->monomials[i].degree;
-			}
+			temp->monomials[number].degree = poly1->monomials[j].degree + poly2->monomials[i].degree;
 		}
 	}
 	return temp;
@@ -196,7 +244,7 @@ struct Polynomial *subPolynomials(struct Polynomial *poly1, struct Polynomial *p
 {
 	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
 	//сначала копируем данные из poly1;
-	int i = 0, j = 0, wasSubstructed = 0;
+	unsigned int i = 0, j = 0, wasSubstructed = 0;
 	temp->monomials = NULL;
 	temp->monomialsCount = poly1->monomialsCount;
 	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
@@ -234,7 +282,7 @@ struct Polynomial *addPolynomials(struct Polynomial *poly1, struct Polynomial *p
 {
 	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
 	//сначала копируем данные из poly1;
-	int i = 0, j = 0, wasAdded = 0;
+	unsigned int i = 0, j = 0, wasAdded = 0;
 	temp->monomials = NULL;
 	temp->monomialsCount = poly1->monomialsCount;
 	temp->monomials = (struct Monomial*) realloc(temp->monomials, sizeof(struct Monomial) * (temp->monomialsCount)); 
@@ -479,9 +527,11 @@ int main () {
 	PolyArray.Polynomials = NULL;
 	
 
-	tempPoly1 = getPolynomialFromString("-200");
-	tempPoly2 = getPolynomialFromString("100");
+	tempPoly1 = getPolynomialFromString("3X3-1X2-300X1");
+	tempPoly2 = getPolynomialFromString("100X2+1X1");
 	tempPoly3 = getDivPolynomials(tempPoly1, tempPoly2);
+	printPolynomial(tempPoly3);
+	tempPoly3 = getModPolynomials(tempPoly1, tempPoly2);
 	printPolynomial(tempPoly3);
 	system("pause");
 	//how it works?

@@ -17,6 +17,7 @@ struct PolynomialsArray
 	unsigned int count;
 };
 
+double computeByValue(struct Polynomial *poly, double value);
 struct Polynomial *cleapUp(struct Polynomial **poly);
 void sortToBiggerPolynomial(struct Polynomial **poly);
 void sortToLessPolynomial(struct Polynomial **poly);

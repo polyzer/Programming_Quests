@@ -1,10 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <locale.h>
 #include "Polynomial.h"
 
 
 //переменные начинаюст€ с $
+double computeByValue(struct Polynomial *poly, double value)
+{
+	int i = 0, j = 0;
+	double answer = 0, num = 1;
+	for (i = 0; i < poly->monomialsCount; i++)
+	{
+		for (j = 0; j < poly->monomials[i].degree; j++)
+		{
+			num *= value;
+		}
+		num *= poly->monomials[i].factor;
+		answer += num;
+	}
+	return answer;
+}
 struct Polynomial *cleanUp(struct Polynomial **poly)
 {
 	struct Polynomial *temp = (struct Polynomial *) malloc(sizeof(struct Polynomial));
@@ -95,7 +111,11 @@ struct Polynomial *GCD(struct Polynomial *poly1, struct Polynomial *poly2)
 {
 	struct Polynomial *quotient = NULL, *tempQ = NULL; // то что получилось в рез-те делени€
 	struct Polynomial *residue = NULL, *tempR = NULL; // остаток
-	unsigned int i = 0;
+	unsigned int i = 0, stepCount = 0;
+	if ((poly1->monomials[0].degree == 0) || (poly2->monomials[0].degree == 0)){
+		printf("—тепени многочленов должны быть > 0!\n");
+		return NULL;
+	}
 	quotient = (struct Polynomial *) malloc( sizeof(struct Polynomial));
 	quotient->monomialsCount = poly2->monomialsCount;
 	quotient->monomials = (struct Monomial *) malloc(sizeof(struct Monomial) * (poly2->monomialsCount));
@@ -115,29 +135,15 @@ struct Polynomial *GCD(struct Polynomial *poly1, struct Polynomial *poly2)
 
 	while (1)
 	{
+		stepCount++;
 		tempQ = getDivPolynomials(residue, quotient);
 		tempR = getModPolynomials(residue, quotient);
 		if ((tempR == NULL) || tempR->monomials[0].factor == 0)
 		{
-			if (residue->monomialsCount == 1 && quotient->monomialsCount == 1){
-				if (quotient->monomials[0].factor < residue->monomials[0].factor){
-					free(tempQ);
-					tempQ = NULL;
-					free(residue);
-					residue = NULL;
-					free(tempR);
-					tempR = NULL; 
-					return quotient;
-				}else
-				{
-					free(tempQ);
-					tempQ = NULL;
-					free(quotient);
-					quotient = NULL;
-					free(tempR);
-					tempR = NULL; 
-					return residue;
-				}
+			if (stepCount == 1 )
+			{
+				printf("ƒелитс€ без остатка!\n");
+				return NULL;
 			}
 			free(tempQ);
 			tempQ = NULL;
@@ -394,7 +400,13 @@ int identificationVariable(char *expression)
 }
 void printPolynomial(struct Polynomial* poly)
 {
-	int i = 0;
+	unsigned int i = 0;
+	if (poly == NULL)
+	{
+		printf("NULL\n");
+		system("pause");
+		exit(0);
+	}
 	sortToLessPolynomial(&poly);
 	for(i = 0; i < poly->monomialsCount; i++)
 	{
@@ -563,15 +575,17 @@ int main () {
 	struct PolynomialsArray PolyArray;
 	char buf[1000];
 	char **expressions = NULL;
+	double computed;
 	struct Polynomial *tempPoly1, *tempPoly2, *tempPoly3;
+	setlocale(LC_ALL, "Russian");
 	PolyArray.count = 0;
 	PolyArray.Polynomials = NULL;
-	tempPoly1 = getPolynomialFromString("49");
-	tempPoly2 = getPolynomialFromString("14");
-	tempPoly3 = mulPolynomials(tempPoly1, tempPoly2);
-	printPolynomial(tempPoly3);
+	tempPoly1 = getPolynomialFromString("49X3");
+	tempPoly2 = getPolynomialFromString("23X1");
 	tempPoly3 = GCD(tempPoly1, tempPoly2);
 	printPolynomial(tempPoly3);
+	computed = computeByValue(tempPoly1, 10);
+	printf("computed: %f\n", computed);
 	system("pause");
 	//how it works?
 	free(tempPoly1->monomials);

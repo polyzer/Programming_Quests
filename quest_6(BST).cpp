@@ -9,7 +9,6 @@ struct Data {
 	char *value;
 };
 
-
 struct Node {
 	struct Data data;
 	struct Node *left; // указатель на левый 
@@ -84,19 +83,6 @@ void BSTFunc()
 					REMOVE(&head, key);
 			}
 		}
-		if (menu == 4){
-			printf("Очистка дерева.\n");
-			while (head != NULL)
-			{
-				if (!strcmp(head->data.key, key) && head->left == NULL && head->right == NULL){
-					freeNode(&head);
-					head = NULL;
-				}
-				else
-					REMOVE(&head, head->data.key);
-			}
-			exit(0);
-		}
 		PrintMenu();
 	}
 
@@ -105,7 +91,7 @@ void BSTFunc()
 void PrintMenu()
 {
 	printf("***********Двоичное дерево поиска.**********\n");
-	printf("1. Добавить элемент\n2. Найти значение по ключу\n3. Удалить элемент по заданному ключу\n 4. Выход\n");
+	printf("1. Добавить элемент\n2. Найти значение по ключу\n3. Удалить элемент по заданному ключу\n");
 }
 
 

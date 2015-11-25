@@ -7,7 +7,7 @@
 #define PORT 666
 #define SERVERADDR "127.0.0.1"
 
-int init_var = 0; // определяет инициализацию
+//int init_var = 0; // определяет инициализацию
 
 int main(int argc, char *argv[])
 {
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 		printf("S=>C:%s", buff);
 		printf("S<=C:"); fgets(&buff[0], sizeof(buff)-1, stdin);
 
-		if(!strcmp(&buff[0], "quit\n"));
+		if(!strcmp(&buff[0], "quit\n")) // вот тут была ;!!!
 		{
 			printf("Exit...");
 			closesocket(my_sock);

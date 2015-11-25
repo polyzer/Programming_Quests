@@ -121,12 +121,11 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 	while(true)
 	{
 		int bytes_recv = recv(my_sock, &buff[0], sizeof(buff), 0);
-		printf("ERROR");
-		if ( bytes_recv && bytes_recv != SOCKET_ERROR){
+		if (bytes_recv && bytes_recv != SOCKET_ERROR){
 			
-//			send(my_sock, &buff[0], bytes_recv, 0);
+			send(my_sock, &buff[0], bytes_recv, 0);
 			printf("There");
-			sendToAllClients(buff, bytes_recv, &ListHead, &ListEnd);
+//			sendToAllClients(buff, bytes_recv, &ListHead, &ListEnd);
 		} else 
 		{
 			break;

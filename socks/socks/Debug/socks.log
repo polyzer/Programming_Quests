@@ -1,4 +1,4 @@
-﻿Построение начато 25.11.2015 22:02:10.
+﻿Построение начато 26.11.2015 1:00:55.
      1>Проект "C:\Users\cash\Documents\Visual Studio 2012\Projects\socks\socks\socks.vcxproj" в узле 2 (целевые объекты Build).
      1>ClCompile:
          C:\Program Files\Microsoft Visual Studio 11.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc110.pdb" /Gd /TP /analyze- /errorReport:prompt serv.cpp
@@ -10,4 +10,4 @@
 
 Построение успешно завершено.
 
-Затраченное время: 00:00:02.37
+Затраченное время: 00:00:02.96

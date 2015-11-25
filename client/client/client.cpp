@@ -7,7 +7,12 @@
 #define PORT 666
 #define SERVERADDR "127.0.0.1"
 
+int recvOver = 0;
+int sendOver = 0;
 //int init_var = 0; // определяет инициализацию
+DWORD WINAPI recvProcess(LPVOID param_sock);
+DWORD WINAPI sendProcess(LPVOID param_sock);
+
 
 int main(int argc, char *argv[])
 {
@@ -55,27 +60,62 @@ int main(int argc, char *argv[])
 
 		printf("Соединение с %s успешно установлено\n\
 			   Type quit for quit \n\n", SERVERADDR);
+		DWORD thID1;
+		DWORD thID2;
+		CreateThread(NULL, NULL, sendProcess, &my_sock, NULL, &thID1);
+		CreateThread(NULL, NULL, recvProcess, &my_sock, NULL, &thID2);
+		while (true)
+		{
+			if(sendOver && recvOver)
+			{
+				printf("Program is closed");
+				break;
+			}
+			Sleep(1000);
+		}
+		closesocket(my_sock);
+		WSACleanup();
+		return 0;
+}
 
+DWORD WINAPI recvProcess(LPVOID param_sock)
+{
+	SOCKET my_sock;
+	my_sock = ((SOCKET *) param_sock)[0];
+	char buff[1024];
 	int nsize;
 	while((nsize = recv(my_sock, &buff[0], sizeof(buff)-1,0))!= SOCKET_ERROR)
 	{
-		buff[nsize] = 0;
-		printf("S=>C:%s", buff);
-		printf("S<=C:"); fgets(&buff[0], sizeof(buff)-1, stdin);
+		if (!sendOver)
+		{
+			buff[nsize] = 0;
+			printf("S=>C:%s", buff);
+		} else
+		{
+			recvOver = 1;
+			ExitProcess(0);
+		}
+	}
+//	printf ("Recv error %d\n", WSAGetLastError());
+//	closesocket(my_sock);
+//	WSACleanup();
+}
 
+DWORD WINAPI sendProcess(LPVOID param_sock)
+{
+	SOCKET my_sock;
+	my_sock = ((SOCKET *) param_sock)[0];
+
+	char buff[1024];
+	while (true)
+	{
+		printf("S<=C:"); fgets(&buff[0], sizeof(buff)-1, stdin);
 		if(!strcmp(&buff[0], "quit\n")) // вот тут была ;!!!
 		{
 			printf("Exit...");
-			closesocket(my_sock);
-			WSACleanup();
-			return 0;
+			sendOver = 1;// закрываем!
+			ExitProcess(0);
 		}
-
-		send(my_sock, &buff[0], nsize, 0);
+		send(my_sock, &buff[0], sizeof(buff)-1, 0);
 	}
-
-	printf ("Recv error %d\n", WSAGetLastError());
-	closesocket(my_sock);
-	WSACleanup();
-	return -1;
 }

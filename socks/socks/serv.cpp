@@ -117,15 +117,15 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 	#define sHELLO "Вы подключены\r\n"	
 	send(my_sock, sHELLO, sizeof(sHELLO), 0);
 	// инициализируем клиента!
-//	clientInit(&my_sock);
+	clientInit(&my_sock);
 	while(true)
 	{
 		int bytes_recv = recv(my_sock, &buff[0], sizeof(buff), 0);
 		if (bytes_recv && bytes_recv != SOCKET_ERROR){
 			
-			send(my_sock, &buff[0], bytes_recv, 0);
+//			send(my_sock, &buff[0], bytes_recv, 0);
 			printf("There");
-//			sendToAllClients(buff, bytes_recv, &ListHead, &ListEnd);
+			sendToAllClients(buff, bytes_recv, &ListHead, &ListEnd);
 		} else 
 		{
 			break;
@@ -136,8 +136,8 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 
 	printf("-disconnect\n"); PRINTNUSERS
 	//удаление клиента!
-//	removeListElementBySocket(&ListHead, &ListEnd, &my_sock);
-	closesocket(my_sock);
+	removeListElementBySocket(&ListHead, &ListEnd, &my_sock);
+//	closesocket(my_sock);
 	return 0;
 }
 
@@ -263,11 +263,12 @@ void sendToAllClients(char *buff, int bytes_recv, struct ListElement **ListHead,
 {
 	struct ListElement *cur_el;
 	cur_el = *ListHead;
-	while (cur_el->next != NULL)
+	while (cur_el != NULL)
 	{
 		//пишем!
 		printf("\n1 send");
 		send(*(cur_el->client.socket), buff, bytes_recv, 0);
+		cur_el = cur_el->next;
 	}
 }
 

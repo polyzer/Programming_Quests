@@ -1,5 +1,5 @@
-#include <stdio.h>
-#include <string.h>
+#include <iostream>
+#include <string>
 #include <winsock2.h>
 #include <windows.h>
 #include <locale.h>
@@ -12,12 +12,13 @@ int sendOver = 0;
 char UserName[20];
 DWORD WINAPI recvProcess(LPVOID param_sock);
 DWORD WINAPI sendProcess(LPVOID param_sock);
-
+int userInit(const char *nick, SOCKET sock);
+std::string SENTENCE_ANSWERING = "NO";
 
 int main(int argc, char *argv[])
 {
 	setlocale(LC_ALL, "Russian");
-	char buff[1024];
+	char buff[20*1024];
 	printf("TCP DEMO CLIENT \n");
 
 	if (WSAStartup(0x202, (WSADATA * )&buff[0]))
@@ -63,6 +64,7 @@ int main(int argc, char *argv[])
 
 		printf("Соединение с %s успешно установлено\n\
 			   Type quit for quit \n\n", SERVERADDR);
+		userInit(UserName, my_sock);
 		DWORD thID1;
 		DWORD thID2;
 		CreateThread(NULL, NULL, sendProcess, &my_sock, NULL, &thID1);
@@ -81,18 +83,39 @@ int main(int argc, char *argv[])
 		return 0;
 }
 
+
 DWORD WINAPI recvProcess(LPVOID param_sock)
 {
 	SOCKET my_sock;
 	my_sock = ((SOCKET *) param_sock)[0];
 	char buff[1024];
+	std::string buffstr;
 	int nsize;
 	while((nsize = recv(my_sock, &buff[0], sizeof(buff)-1,0))!= SOCKET_ERROR)
 	{
 		if (!sendOver)
 		{
-			buff[nsize] = 0;
-			printf("S=>C:%s", buff);
+			if(!strncmp(buff, "SENTENCE_FROM_ME:", strlen("SENTENCE_FROM_ME:")))
+			{
+				SENTENCE_ANSWERING = "SENTENCE_FROM_ME";
+				buff[nsize] = 0;
+				buffstr = buff;
+				buffstr = buffstr.substr(strlen("SENTENCE_FROM_ME:"));
+				std::cout << buffstr << std::endl;
+			} else
+			if(!strncmp(buff, "SENTENCE_FROM_ANOTHER:", strlen("SENTENCE_FROM_ANOTHER:")))
+			{
+				SENTENCE_ANSWERING = "SENTENCE_FROM_ANOTHER";
+				buff[nsize] = 0;
+				buffstr = buff;
+				buffstr = buffstr.substr(strlen("SENTENCE_FROM_ANOTHER:"));
+				std::cout << buffstr << std::endl;
+			} else
+			{
+				buff[nsize] = 0;
+				buffstr = buff;
+				std::cout << buffstr << std::endl;
+			}
 		} else
 		{
 			recvOver = 1;
@@ -104,26 +127,68 @@ DWORD WINAPI recvProcess(LPVOID param_sock)
 //	WSACleanup();
 }
 
+// чтобы начать анонимный чат:
+// ввести WANNA_USERCHAT
+// сервер пришлет
+// список доступных пользователей
+// когда человек выберет юзера
+// начинается анончат.
+
+
 DWORD WINAPI sendProcess(LPVOID param_sock)
 {
 	SOCKET my_sock;
 	my_sock = ((SOCKET *) param_sock)[0];
 
-	char buff[1024];
-	char buff1[1024];
+	std::string buffstr;
+	char buff[2*1024];
+	char buff1[2*1024];
+
 	while (true)
 	{
-		printf("S<=C:"); fgets(&buff[0], sizeof(buff)-1, stdin);
-		if(!strcmp(&buff[0], "quit\n")) // вот тут была ;!!!
+		//printf("S<=C:"); 
+		fgets(&buff[0], sizeof(buff)-1, stdin);
+		
+		// если пользователь захотел установить шифрованный
+		// чат
+		if (!strncmp(buff, "WANNA_USERCHAT:", strlen("WANNA_USERCHAT:"))||
+			!strncmp(buff, "WANNA_TO_CHAT:", strlen("WANNA_TO_CHAT:"))||
+			!strncmp(buff, "WANNA_LIST\n", strlen("WANNA_LIST\n")))
+		{
+			strcpy(buff1, buff);
+		} else if(!strcmp(&buff[0], "quit\n")) // вот тут была ;!!!
 		{
 			printf("Exit...");
 			sendOver = 1;// закрываем!
 			ExitProcess(0);
+		} else if (SENTENCE_ANSWERING == "SENTENCE_FROM_ANOTHER")// если отвечаем на предложение!
+		{
+			SENTENCE_ANSWERING = "NO";
+			// скипаем прослушивание канала от нашего потока,
+			// чтобы отправить данные в спрашивающий!
+			send(my_sock, "[off]", strlen("[off]") * sizeof(char) , 0);
+			strcpy(buff1, buff);
+		} else if (SENTENCE_ANSWERING == "SENTENCE_FROM_ME")// если отвечаем на предложение!
+		{
+			SENTENCE_ANSWERING = "NO";
+			// ничего не скипаем!
+			strcpy(buff1, buff);
+		} else
+		{
+			strcpy(buff1, "[");
+			strcat(buff1, UserName);
+			strcat(buff1, "] ");
+			strcat(buff1, buff);
 		}
-		strcpy(buff1, "[");
-		strcat(buff1, UserName);
-		strcat(buff1, "] ");
-		strcat(buff1, buff);
-		send(my_sock, &buff1[0], sizeof(buff1)-1, 0);
+		send(my_sock, &buff1[0], strlen(buff1)*sizeof(char), 0);
 	}
+}
+
+int userInit(const char *nick, SOCKET sock)
+{
+	char localbuff[100];
+	strcpy(localbuff, nick);
+
+	send(sock, &localbuff[0], strlen(localbuff)*sizeof(char), 0);	
+	return 0;
 }

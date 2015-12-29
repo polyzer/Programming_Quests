@@ -9,16 +9,17 @@
 
 int recvOver = 0;
 int sendOver = 0;
-char UserName[20];
+char *UserName;
 DWORD WINAPI recvProcess(LPVOID param_sock);
 DWORD WINAPI sendProcess(LPVOID param_sock);
-int userInit(const char *nick, SOCKET sock);
+char *userInit(SOCKET sock);
 std::string SENTENCE_ANSWERING = "NO";
 
 int main(int argc, char *argv[])
 {
 	setlocale(LC_ALL, "Russian");
 	char buff[20*1024];
+	int bytes_recv;
 	printf("TCP DEMO CLIENT \n");
 
 	if (WSAStartup(0x202, (WSADATA * )&buff[0]))
@@ -26,10 +27,6 @@ int main(int argc, char *argv[])
 		printf("WSAStart error %d\n", WSAGetLastError());
 		return -1;
 	}
-	// ввод данных в строку!
-	printf("Введите nickname: \n");
-	gets(UserName);
-
 	SOCKET my_sock;
 	my_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (my_sock < 0)
@@ -64,7 +61,13 @@ int main(int argc, char *argv[])
 
 		printf("Соединение с %s успешно установлено\n\
 			   Type quit for quit \n\n", SERVERADDR);
-		userInit(UserName, my_sock);
+
+		bytes_recv = recv(my_sock, &buff[0], sizeof(buff), 0);
+		buff[bytes_recv] = 0;
+		printf("%s \n", buff);
+
+		UserName = userInit(my_sock);
+		
 		DWORD thID1;
 		DWORD thID2;
 		CreateThread(NULL, NULL, sendProcess, &my_sock, NULL, &thID1);
@@ -146,14 +149,14 @@ DWORD WINAPI sendProcess(LPVOID param_sock)
 
 	while (true)
 	{
-		//printf("S<=C:"); 
 		fgets(&buff[0], sizeof(buff)-1, stdin);
 		
 		// если пользователь захотел установить шифрованный
 		// чат
 		if (!strncmp(buff, "WANNA_USERCHAT:", strlen("WANNA_USERCHAT:"))||
 			!strncmp(buff, "WANNA_TO_CHAT:", strlen("WANNA_TO_CHAT:"))||
-			!strncmp(buff, "WANNA_LIST\n", strlen("WANNA_LIST\n")))
+			!strncmp(buff, "WANNA_LIST", strlen("WANNA_LIST"))||
+			!strncmp(buff, "WANNA_TO_QUIT_SUBCHAT", strlen("WANNA_TO_QUIT_SUBCHAT")))
 		{
 			strcpy(buff1, buff);
 		} else if(!strcmp(&buff[0], "quit\n")) // вот тут была ;!!!
@@ -184,11 +187,28 @@ DWORD WINAPI sendProcess(LPVOID param_sock)
 	}
 }
 
-int userInit(const char *nick, SOCKET sock)
+char *userInit(SOCKET sock)
 {
-	char localbuff[100];
-	strcpy(localbuff, nick);
+	int bytes_recv;
+	char localbuff[1024];
+	char name[1024];
+		// ввод данных в строку!
+	while (true)
+	{
+		printf("Введите nickname: \n");
+		gets(name);
+		send(sock, &name[0], strlen(name)*sizeof(char), 0);	
+		bytes_recv = recv(sock, &localbuff[0], sizeof(localbuff), 0);
+		localbuff[bytes_recv] = 0;
+		if(strncmp(localbuff, "[NICKNAME_OK]", strlen("[NICKNAME_OK]")))
+		{
+			printf("%s", localbuff);
+		}
+		else
+		{
+			printf("Можете общаться! \n");
+			return name;
+		}
+	}
 
-	send(sock, &localbuff[0], strlen(localbuff)*sizeof(char), 0);	
-	return 0;
 }

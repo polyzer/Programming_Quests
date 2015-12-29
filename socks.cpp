@@ -53,6 +53,7 @@ struct SubchatElement
 
 std::vector <SubchatElement*> Subchats;
 
+void sendToAllSubchatMembers(const char *buff, int bytes_recv, SubchatElement *SE_p);
 Client *getClientByNickname(Client **ListHead, Client **ListEnd, std::string nickname);
 void removeMemberFromSubchatElementByName(SubchatElement *SE_p, std::string member_name);
 // отправляет предложение пользователям
@@ -80,6 +81,8 @@ void removeListElementBySocket(Client **ListHead, Client **ListEnd, SOCKET *sock
 // рассылка сообщения всем клиентам!
 void sendToAllClients(char *buff, int bytes_recv, Client **ListHead, Client **ListEnd);
 Client *clientInit(SOCKET *socket, const char *buff);
+// удаление пользователя из собчата и самого собчата, если там остался только 1 пользователь
+void removeSubchatIfThereIsOneOrNullUser(std::vector <SubchatElement*> &Subchats);
 
 //Задаются два элемента
 // первый указывает на голову списка
@@ -177,9 +180,24 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 	send(my_sock, sHELLO, sizeof(sHELLO), 0);
 	// инициализируем клиента!
 	// в buff приходит только никнейм клиента
-	bytes_recv = recv(my_sock, &buff[0], sizeof(buff), 0);
-	buff[bytes_recv] = 0;
-	MyClient = clientInit(&my_sock, buff);
+	// инициализация клиента!
+	while(true)
+	{
+		bytes_recv = recv(my_sock, &buff[0], sizeof(buff), 0);
+		buff[bytes_recv] = 0;
+		buffstr = buff;
+		if ((AnotherClient = getClientByNickname(&ListHead, &ListEnd, buffstr)) != NULL)
+		{
+			buffstr = "Пользователь с данным nickname уже существует!\n Введите другой nickname:\n";
+			send(my_sock, buffstr.c_str(), buffstr.length(), 0);
+		}else
+		{
+			buffstr = "[NICKNAME_OK]";
+			send(my_sock, buffstr.c_str(), buffstr.length(), 0);
+			MyClient = clientInit(&my_sock, buff);	
+			break;
+		}
+	}
 	while(true)
 	{
 		bytes_recv = recv(my_sock, &buff[0], sizeof(buff), 0);
@@ -228,6 +246,8 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 							// и добавляем в него элемент
 							SubchatPtr = new SubchatElement(MyClient, AnotherClient, buffstr);
 							Subchats.push_back(SubchatPtr);
+							buffstr = "Вы вошли в подчат: " + SubchatPtr->Name;
+							sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);	
 						}else
 						{
 							buffstr = "Пользователь " + *(AnotherClient->nickname) + "не желает создавать подчат!\n";
@@ -256,15 +276,44 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 					sentence = "Хотите ли вы добавить пользователя в закрытый чат:" + *(MyClient->nickname) + "\n";
 					if(sendSentenceToAllSubchatMembersAndGetBoolAnswers(SubchatPtr, sentence) == true)
 					{
-						SubchatPtr->Members.push_back(MyClient);					
+						SubchatPtr->Members.push_back(MyClient);
+						buffstr = "Вы вошли в подчат: " + SubchatPtr->Name;
+						send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);						
+						buffstr = "Пользователь " + *(MyClient->nickname) + " вошел в подчат!";
+						sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);	
 					} else
 					{
-						buffstr = "Члены подчата " + *(AnotherClient->nickname) + "не желает создавать подчат!\n";
-						send(*(AnotherClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);
+						buffstr = "Члены подчата " + SubchatPtr->Name + "не желает создавать подчат!\n";
+						send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);
 					}
 				}
-			}
-			else
+			} else
+			if(strncmp(buff, "WANNA_TO_QUIT_SUBCHAT", strlen("WANNA_TO_QUIT_SUBCHAT")) == 0)
+			{
+				// разбор сообщения
+				buffstr = buff;
+				// получаем название буфера
+				buffstr = buffstr.substr(strlen("WANNA_TO_QUIT_SUBCHAT"));
+				if ((SubchatPtr = getSubchatElementByMemberName(*(MyClient->nickname), Subchats)) != NULL)
+				{
+					removeMemberFromSubchatElementByName(SubchatPtr, *(MyClient->nickname));
+					buffstr = "Пользователь " + *(MyClient->nickname) + " покинул подчат!";
+					sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);	
+					removeSubchatIfThereIsOneOrNullUser(Subchats);
+				}else
+				{
+						buffstr = "Вы не состоите в подчате";
+						send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);
+				}
+			}else
+			//если пользователь находится в подчате
+			if ((SubchatPtr = getSubchatElementByMemberName(*(MyClient->nickname), Subchats)) != NULL)
+			{
+				sendToAllSubchatMembers(buff, bytes_recv, SubchatPtr);
+			}else
+			// если пользователь не находится в подчате и 
+			// было отправлено простое сообщение, то
+			// рассылаем его всем
 			{
 				sendToAllClients(buff, bytes_recv, &ListHead, &ListEnd);
 			}
@@ -280,18 +329,9 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 	if ((SubchatPtr = getSubchatElementByMemberName(*(MyClient->nickname), Subchats)) != NULL)
 	{
 		removeMemberFromSubchatElementByName(SubchatPtr, *(MyClient->nickname));
-		// удаление подчата, если в нем больше никого не осталось
-		if (SubchatPtr->Members.size() == 0)
-		{
-			for(int i = 0; i<Subchats.size(); i++)
-			{
-				if (Subchats[i] == SubchatPtr)
-				{
-					Subchats.erase(Subchats.begin() + i);
-					delete SubchatPtr;
-				}
-			}
-		}
+		buffstr = "Пользователь " + *(MyClient->nickname) + " покинул подчат!";
+		sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);	
+		removeSubchatIfThereIsOneOrNullUser(Subchats);
 	}
 	removeListElementBySocket(&ListHead, &ListEnd, &my_sock);
 	MyClient = NULL;
@@ -301,6 +341,30 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 	return 0;
 }
 
+void sendToAllSubchatMembers(const char *buff, int bytes_recv, SubchatElement *SE_p)
+{
+	for(int i = 0; i < SE_p->Members.size(); i++)
+	{
+		send(*(SE_p->Members[i]->socket), buff, strlen(buff) * sizeof(char), 0);
+	}
+	
+}
+
+void removeSubchatIfThereIsOneOrNullUser(std::vector <SubchatElement*> &Subchats)
+{
+	for(int i = 0; i < Subchats.size(); i++)
+	{
+		if(Subchats[i]->Members.size() == 1)
+		{
+			std::string buffstr;
+			buffstr = "Подчат, в котором вы находились закрыт. Так как там остался только 1 пользователь";
+			send(*(Subchats[i]->Members[0]->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);
+			Subchats[i]->Members.erase(Subchats[i]->Members.begin());
+			delete Subchats[i];
+			Subchats.erase(Subchats.begin() + i);
+		}
+	}
+}
 Client *getClientByNickname(Client **ListHead, Client **ListEnd, std::string nickname)
 {
 	Client *cur_elem = *ListHead;
@@ -340,7 +404,7 @@ bool sendSentenceToAllSubchatMembersAndGetBoolAnswers(SubchatElement *SE_p, std:
 	{
 		send(*(SE_p->Members[i]->socket), sentence.c_str(), sentence.length() * sizeof(char), 0);
 		recv(*(SE_p->Members[i]->socket), &buff[0], sizeof(buff), 0);
-		if (buff == "y" || buff == "Y")
+		if (buff[0] == 'y' || buff[0] == 'Y')
 		{
 			counter_yes--;
 		}

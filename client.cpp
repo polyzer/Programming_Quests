@@ -7,6 +7,7 @@
 #define PORT 666
 #define SERVERADDR "127.0.0.1"
 
+
 int recvOver = 0;
 int sendOver = 0;
 char *UserName;
@@ -153,8 +154,8 @@ DWORD WINAPI sendProcess(LPVOID param_sock)
 		
 		// если пользователь захотел установить шифрованный
 		// чат
-		if (!strncmp(buff, "WANNA_USERCHAT:", strlen("WANNA_USERCHAT:"))||
-			!strncmp(buff, "WANNA_TO_CHAT:", strlen("WANNA_TO_CHAT:"))||
+		if (!strncmp(buff, "WANNA_SUBCHAT:", strlen("WANNA_SUBCHAT:"))||
+			!strncmp(buff, "WANNA_TO_SUBCHAT:", strlen("WANNA_TO_SUBCHAT:"))||
 			!strncmp(buff, "WANNA_LIST", strlen("WANNA_LIST"))||
 			!strncmp(buff, "WANNA_TO_QUIT_SUBCHAT", strlen("WANNA_TO_QUIT_SUBCHAT")))
 		{

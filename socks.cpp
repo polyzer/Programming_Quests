@@ -4,6 +4,11 @@
 #include <WinSock2.h>
 #include <Windows.h>
 #include <clocale>
+#include <algorithm>
+#include <random>
+#include <ctime>
+#include <clocale>
+
 
 #define MY_PORT 666
 
@@ -13,6 +18,7 @@ DWORD WINAPI SexToClient(LPVOID client_socket);
 
 int nclients = 0;
 
+int g;
 
 /// подключаться к элементам подчата
 /// WANNA_TO_CHAT:[1] - Номер элемента
@@ -51,7 +57,9 @@ struct SubchatElement
 	}
 };
 
+int SimpleNumbers[] = {2, 3, 5,	7, 11,	13,	17,	19,	23,	29,	31};
 std::vector <SubchatElement*> Subchats;
+
 
 void sendToAllSubchatMembers(const char *buff, int bytes_recv, SubchatElement *SE_p);
 Client *getClientByNickname(Client **ListHead, Client **ListEnd, std::string nickname);
@@ -83,21 +91,26 @@ void sendToAllClients(char *buff, int bytes_recv, Client **ListHead, Client **Li
 Client *clientInit(SOCKET *socket, const char *buff);
 // удаление пользователя из собчата и самого собчата, если там остался только 1 пользователь
 void removeSubchatIfThereIsOneOrNullUser(std::vector <SubchatElement*> &Subchats);
-
+std::vector<unsigned long long> findGeneratingElementOfCommunicativeGroupOfFieldByModP(int P);
 //Задаются два элемента
 // первый указывает на голову списка
 // второй на конец списка!
 Client *ListHead = NULL;
 Client *ListEnd = NULL;
 
+int P;
+unsigned long long g;
+std::vector<unsigned long long> ElemsOfComGroup;
+
 int main(int argc, char *argv[]) 
 {
-
 	setlocale(LC_ALL, "Russian");
+	srand(time(0));
+	P = SimpleNumbers[rand() % sizeof(SimpleNumbers)];
+	ElemsOfComGroup = findGeneratingElementOfCommunicativeGroupOfFieldByModP(P);
+	g = ElemsOfComGroup[rand() % ElemsOfComGroup.size()];
 	char buff[1024];
-
 	std::cout << "TCP SERVER DEMO" << std::endl;
-
 	if (WSAStartup(0x0202, (WSADATA *) &buff[0]))
 	{
 		printf("ERROR WSAStartup %d\n", WSAGetLastError());
@@ -153,10 +166,7 @@ int main(int argc, char *argv[])
 
 		DWORD thID;
 		CreateThread(NULL, NULL, SexToClient, &client_socket, NULL, &thID);
-
 	}
-
-
 	return 0;
 }
 
@@ -188,7 +198,7 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 		buffstr = buff;
 		if ((AnotherClient = getClientByNickname(&ListHead, &ListEnd, buffstr)) != NULL)
 		{
-			buffstr = "Пользователь с данным nickname уже существует!\n Введите другой nickname:\n";
+			buffstr = "Пользователь с данным nickname уже существует!\n";
 			send(my_sock, buffstr.c_str(), buffstr.length(), 0);
 		}else
 		{
@@ -218,59 +228,66 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 			{
 				sendListOfUsersAndSubchats(&ListHead, &ListEnd, Subchats, my_sock);
 			} else
-			if(strncmp(buff, "WANNA_USERCHAT:", strlen("WANNA_USERCHAT:")) == 0)
+			if(strncmp(buff, "WANNA_SUBCHAT:", strlen("WANNA_SUBCHAT:")) == 0)
 			{
 				// разбор сообщения
 				buffstr = buff;
 				// теперь buffstr содержит имя пользователя!
-				buffstr = buffstr.substr(strlen("WANNA_USERCHAT:"));
-				// если пользователь не состоит ни в одном 
-				if ((AnotherClient = getClientByNickname(&ListHead, &ListEnd, buffstr)) != NULL)
+				buffstr = buffstr.substr(strlen("WANNA_SUBCHAT:"));
+				// если пользователь не собирается чатиться сам с собой!...
+				if (buffstr != *(MyClient->nickname))
 				{
-					if (getSubchatElementByName(*(AnotherClient->nickname), Subchats) == NULL)
+					// если пользователь существует
+					if ((AnotherClient = getClientByNickname(&ListHead, &ListEnd, buffstr)) != NULL)
 					{
-						sentence = "Хотите ли создать закрытый чат с пользователем:" + *(MyClient->nickname) + "\n";
-						// спрашиваем согласие у клиента
-						if(sendSentenceToUserAndGetBoolAnswer(AnotherClient->socket, sentence) == true)
+						if (getSubchatElementByName(*(AnotherClient->nickname), Subchats) == NULL)
 						{
-							// отправляем предложение, на которое должен быть дан ответ!
-							sentence = "SENTENCE_FROM_ME:Введите имя для подчата:\n";
-							send(*(MyClient->socket), sentence.c_str(), sentence.length() * sizeof(char), 0);
-							bytes_recv = recv(*(MyClient->socket), buff, sizeof(buff), 0);
-							if (buff[bytes_recv - 1] == '\n')
-								buff[bytes_recv - 1] = 0;
-							else
-								buff[bytes_recv] = 0;
-							buffstr = buff;
-							// создаем подчат
-							// и добавляем в него элемент
-							SubchatPtr = new SubchatElement(MyClient, AnotherClient, buffstr);
-							Subchats.push_back(SubchatPtr);
-							buffstr = "Вы вошли в подчат: " + SubchatPtr->Name;
-							sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);	
-						}else
+							sentence = "Хотите ли создать закрытый чат с пользователем:" + *(MyClient->nickname) + "\n";
+							// спрашиваем согласие у клиента
+							if(sendSentenceToUserAndGetBoolAnswer(AnotherClient->socket, sentence) == true)
+							{
+								// отправляем предложение, на которое должен быть дан ответ!
+								sentence = "SENTENCE_FROM_ME:Введите имя для подчата:\n";
+								send(*(MyClient->socket), sentence.c_str(), sentence.length() * sizeof(char), 0);
+								bytes_recv = recv(*(MyClient->socket), buff, sizeof(buff), 0);
+								if (buff[bytes_recv - 1] == '\n')
+									buff[bytes_recv - 1] = 0;
+								else
+									buff[bytes_recv] = 0;
+								buffstr = buff;
+								// создаем подчат
+								// и добавляем в него элемент
+								SubchatPtr = new SubchatElement(MyClient, AnotherClient, buffstr);
+								Subchats.push_back(SubchatPtr);
+								buffstr = "Вы вошли в подчат: " + SubchatPtr->Name;
+								sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);	
+							}else
+							{
+								buffstr = "Пользователь " + *(AnotherClient->nickname) + "не желает создавать подчат!\n";
+								send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);
+							}
+						} else
 						{
-							buffstr = "Пользователь " + *(AnotherClient->nickname) + "не желает создавать подчат!\n";
+							buffstr = "Пользователь " + *(AnotherClient->nickname) + "уже состоит в подчате!\n";
 							send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);
 						}
-					} else
+					}else
 					{
-						buffstr = "Пользователь " + *(AnotherClient->nickname) + "уже состоит в подчате!\n";
+						buffstr = "Пользователя с данным никнеймом нет в чате\n";
 						send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);
 					}
 				}else
 				{
-					buffstr = "Пользователя с данным никнеймом нет в чате\n";
-					send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);
+						buffstr = "Вы не можете устроить чат сам с собой!\n";
+						send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);
 				}
-
 			} else
-			if(strncmp(buff, "WANNA_TO_CHAT:", strlen("WANNA_TO_CHAT:")) == 0)
+			if(strncmp(buff, "WANNA_TO_SUBCHAT:", strlen("WANNA_TO_SUBCHAT:")) == 0)
 			{
 				// разбор сообщения
 				buffstr = buff;
 				// получаем название буфера
-				buffstr = buffstr.substr(strlen("WANNA_TO_CHAT:"));
+				buffstr = buffstr.substr(strlen("WANNA_TO_SUBCHAT:"));
 				if ((SubchatPtr = getSubchatElementByName(buffstr, Subchats)) != NULL)
 				{
 					sentence = "Хотите ли вы добавить пользователя в закрытый чат:" + *(MyClient->nickname) + "\n";
@@ -588,4 +605,33 @@ void sendToAllClients(char *buff, int bytes_recv, Client **ListHead, Client **Li
 Client *clientInit(SOCKET *socket, const char *nick)
 {
 	return insertElementTailList(&ListHead, &ListEnd, allocAndInitElement(socket, nick));
+}
+std::vector<unsigned long long> findGeneratingElementOfCommunicativeGroupOfFieldByModP(int P)
+{
+	std::vector<unsigned long long> stdArr;
+	std::vector<unsigned long long> workArr;
+	unsigned long long k = 0;
+	std::vector<unsigned long long> ReturnVEC;
+	for (unsigned long long i = 1; i < P; i++)
+	{
+		stdArr.push_back(i);
+	}
+	for(unsigned long long g = 1; g<P; g++)
+	{
+		k = 0;
+		for (unsigned long long j = 1; j < P; j++)
+		{
+			if((k = pow(g,j))>= P)
+			{
+				k = k%P;
+				workArr.push_back(k);
+			}else
+				workArr.push_back(k);
+		}
+		std::sort(workArr.begin(), workArr.begin() + workArr.size());
+		if (stdArr == workArr)
+			ReturnVEC.push_back(g);
+		workArr.clear();
+	}
+	return ReturnVEC;
 }

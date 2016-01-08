@@ -45,10 +45,6 @@ struct Client{
 		this->nickname = new std::string(nick);
 		this->next = NULL;
 	}
-
-private:
-	int a;// моя степень
-	unsigned long long K; // секретный ключ
 };
 
 struct SubchatElement
@@ -99,6 +95,7 @@ Client *clientInit(SOCKET *socket, const char *buff);
 // удаление пользователя из собчата и самого собчата, если там остался только 1 пользователь
 void removeSubchatIfThereIsOneOrNullUser(std::vector <SubchatElement*> &Subchats);
 std::vector<unsigned long long> findGeneratingElementOfCommunicativeGroupOfFieldByModP(int P);
+void exchangeBInSubchat(SubchatElement *SE_p);
 //Задаются два элемента
 // первый указывает на голову списка
 // второй на конец списка!
@@ -269,6 +266,9 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 								// и добавляем в него элемент
 								SubchatPtr = new SubchatElement(MyClient, AnotherClient, buffstr);
 								Subchats.push_back(SubchatPtr);
+								/////////////////////////////////////
+								////////////////////////////////////
+								/////// обмен ключами должен быть здесь
 								buffstr = "Вы вошли в подчат: " + SubchatPtr->Name;
 								sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);
 								buffstr = "[IN_CRYPTOCHAT]";
@@ -382,9 +382,69 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 	return 0;
 }
 
-void sendSecretKeys(SubchatElement* SE_p)
+// функция обходит всех в подчате!
+// и для каждого генерит свой B для генерации кейгена!
+void exchangeBInSubchat(SubchatElement *SE_p, Client *MyClient)
 {
+	// начальное значение B = 0
+	// говорит о том, что надо запросить у юзера его B
+	// и только после этого отсылать его остальным пользователям
+	// для возведения в их степени, после чего можно присвоить тому
+	// для кого все это генерилось!
+	unsigned long long B = 0;
+	std::string buffstr;
+	int bytes_recv;
+	char buff[1024];
+	for(int i = 0; i < SE_p->Members.size(); i++)
+	{
+		for(int j = 0; j < SE_p->Members.size(); j++)
+		{
+			// если клиент != тому, для кого мы генерим _B_
+			if(SE_p->Members[j] != SE_p->Members[i])
+			{
+				// если мы запрашиваем у клиента,
+				// который не равен нашему,
+				// то нужно скипать прослушивающий поток самого клиента
+				if(SE_p->Members[j] != MyClient)
+				{
+					if(B == 0)
+						send(*(SE_p->Members[j]->socket) , "[SKIP][GET_YOUR_B]", strlen("[SKIP][GET_YOUR_B]") * sizeof(char), 0);
+					else
+					{
+						buffstr = "[SKIP][GET_B_IN_MY_A_REQUEST]:" + std::to_string(B);
+						send(*(SE_p->Members[j]->socket) , buffstr.c_str(), buffstr.length() * sizeof(char), 0);
+					}
+				}else
+				// если это наш клиент, то скипать поток не надо!
+				{
+					if(B == 0)
+						send(*(SE_p->Members[j]->socket) , "[NO_SKIP][GET_YOUR_B]", strlen("[SKIP][GET_YOUR_B]") * sizeof(char), 0);
+					else
+					{
+						buffstr = "[NO_SKIP][GET_B_IN_MY_A_REQUEST]:" + std::to_string(B);
+						send(*(SE_p->Members[j]->socket) , buffstr.c_str(), buffstr.length() * sizeof(char), 0);
+					}
 
+				}
+				
+				// принимаем то, что запросили выше!
+				// в любом случае ответ должен быть вида:
+				// [MY_B]:b_number
+				bytes_recv = recv(*(SE_p->Members[j]->socket), buff, sizeof(buff), 0);
+				buffstr = buff;
+				// обрезаем строку, чтобы получить число!
+				buffstr = buffstr.substr(strlen("[MY_B]:"));
+				// переприсваиваем B, чтобы отправить след юзеру
+				// на генерацию, или же присвоить полностью сгенеренный B
+				B = std::stoull(buffstr);
+			}
+		}
+		//Здесь будет присваивание полученного _B_ тому, i-тому!
+		buffstr = "[B_TO_KEYGEN]:" + std::to_string(B);
+		send(*(SE_p->Members[i]->socket), buffstr.c_str(), buffstr.length() * sizeof(char), 0);
+		// обнуляем _B_;
+		B = 0;
+	}
 }
 
 void sendToAllSubchatMembers(const char *buff, int bytes_recv, SubchatElement *SE_p)

@@ -96,6 +96,7 @@ Client *clientInit(SOCKET *socket, const char *buff);
 void removeSubchatIfThereIsOneOrNullUser(std::vector <SubchatElement*> &Subchats);
 std::vector<unsigned long long> findGeneratingElementOfCommunicativeGroupOfFieldByModP(int P);
 void exchangeBInSubchat(SubchatElement *SE_p);
+void sendgAndPtoMember(Client *MyClient , unsigned long long g, unsigned long long P);
 //Задаются два элемента
 // первый указывает на голову списка
 // второй на конец списка!
@@ -208,7 +209,7 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 			MyClient = clientInit(&my_sock, buff);	
 			break;
 		}
-	}
+	}	
 	while(true)
 	{
 		bytes_recv = recv(my_sock, &buff[0], sizeof(buff), 0);
@@ -266,13 +267,14 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 								// и добавляем в него элемент
 								SubchatPtr = new SubchatElement(MyClient, AnotherClient, buffstr);
 								Subchats.push_back(SubchatPtr);
-								/////////////////////////////////////
-								////////////////////////////////////
-								/////// обмен ключами должен быть здесь
 								buffstr = "Вы вошли в подчат: " + SubchatPtr->Name;
 								sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);
 								buffstr = "[IN_CRYPTOCHAT]";
 								sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);
+								// присылаем пользователю g и P;
+								sendgAndPtoMember(MyClient, g, P);
+								// обмен ключами для юзеров!
+								exchangeBInSubchat(SubchatPtr, MyClient);
 							}else
 							{
 								buffstr = "Пользователь " + *(AnotherClient->nickname) + "не желает создавать подчат!\n";
@@ -310,13 +312,12 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 						send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);						
 						buffstr = "[IN_CRYPTOCHAT]";
 						send(*(MyClient->socket), buffstr.c_str(), strlen(buffstr.c_str()) * sizeof(char), 0);						
-						//////////////////////////////////
-						/////////////////////////////////
-						////////ВОТ ЗДЕСЬ СДЕЛАТЬ ОБРАБОТКУ СОЗДАНИЯ КЛЮЧЕЙ И РАССЫЛКУ ЕГО ВСЕМ!
-						//////////////////////////////////
-						//////////////////////////////////
 						buffstr = "Пользователь " + *(MyClient->nickname) + " вошел в подчат!";
 						sendToAllSubchatMembers(buffstr.c_str(), buffstr.length(), SubchatPtr);	
+						// присылаем пользователю g и P;
+						sendgAndPtoMember(MyClient, g, P);
+						// обмен ключами в сабчате!
+						exchangeBInSubchat(SubchatPtr, MyClient);
 					} else
 					{
 						buffstr = "Члены подчата " + SubchatPtr->Name + "не желают добавлять вас в подчат!\n";
@@ -380,6 +381,13 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 	printf("-disconnect\n"); PRINTNUSERS
 //	closesocket(my_sock);
 	return 0;
+}
+
+// отсылает пользователю g и P чтобы он их себе установил!
+void sendgAndPtoMember(Client *MyClient , unsigned long long g, unsigned long long P)
+{
+	std::string buffstr = "[SET_G]:" + std::to_string(g) + "[SET_P]:" + std::to_string(P);
+	send(*(MyClient->socket), buffstr.c_str(), buffstr.length() * sizeof(char), 0);
 }
 
 // функция обходит всех в подчате!
@@ -449,6 +457,7 @@ void exchangeBInSubchat(SubchatElement *SE_p, Client *MyClient)
 
 void sendToAllSubchatMembers(const char *buff, int bytes_recv, SubchatElement *SE_p)
 {
+	// _B_ уже содержится в сообщении присылаемым пользователем!
 	for(int i = 0; i < SE_p->Members.size(); i++)
 	{
 		send(*(SE_p->Members[i]->socket), buff, strlen(buff) * sizeof(char), 0);

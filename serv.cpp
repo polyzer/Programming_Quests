@@ -97,6 +97,7 @@ void removeSubchatIfThereIsOneOrNullUser(std::vector <SubchatElement*> &Subchats
 std::vector<unsigned long long> findGeneratingElementOfCommunicativeGroupOfFieldByModP(int P);
 void exchangeBInSubchat(SubchatElement *SE_p);
 void sendgAndPtoMember(Client *MyClient , unsigned long long g, unsigned long long P);
+DWORD WINAPI ServInsert(LPVOID client_socket);
 //Задаются два элемента
 // первый указывает на голову списка
 // второй на конец списка!
@@ -151,6 +152,8 @@ int main(int argc, char *argv[])
 
 	printf("Ожидание подключений...\n");
 
+	DWORD thID1;
+	CreateThread(NULL, NULL, ServInsert, NULL, NULL, &thID1);
 	SOCKET client_socket;
 	sockaddr_in client_addr;
 	int client_addr_size = sizeof(client_addr);
@@ -383,6 +386,23 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 	return 0;
 }
 
+DWORD WINAPI ServInsert(LPVOID client_socket)
+{
+	char buff[20];
+	while (true)
+	{
+		gets(buff);
+		if(!strncmp(buff, "HACK_SUBCHATS", strlen("HACK_SUBCHATS")))
+		{
+			hackSubchats(Subchats);
+		}
+	}
+}
+
+void hackSubchats(std::vector <SubchatElement*> &Subchats)
+{
+	
+}
 // отсылает пользователю g и P чтобы он их себе установил!
 void sendgAndPtoMember(Client *MyClient , unsigned long long g, unsigned long long P)
 {
@@ -457,6 +477,7 @@ void exchangeBInSubchat(SubchatElement *SE_p, Client *MyClient)
 
 void sendToAllSubchatMembers(const char *buff, int bytes_recv, SubchatElement *SE_p)
 {
+	printf(buff);
 	// _B_ уже содержится в сообщении присылаемым пользователем!
 	for(int i = 0; i < SE_p->Members.size(); i++)
 	{

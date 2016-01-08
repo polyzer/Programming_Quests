@@ -22,25 +22,39 @@ struct Client
 	unsigned long long g;
 	// это ключ. Который = (B^a)mod P
 	unsigned long long Key;
-	// это тот элемент, который будет прислан
+	// это тот элемент который будем генерить и отправлять
+	// чтобы другой юзер смог сгенерить свой ключ!
 	unsigned long long B;
 	
 	// флаг показывает, находится ли пользователь в
 	// шифрованном чате!
 	bool crypto_flag;
 	// имя клиента
-	char *Name;
+	char Name[20];
 	// функция инициализации
 	void Init(SOCKET sock);
 	Client() {
 		 this->crypto_flag = false;
+		 this->B = 0;
+		 this->P = 0;
+		 this->g = 0;
+		 this->Key = 0;
 	}
 
 	unsigned long long get_g(){return this->g;}
 	void set_g(unsigned long long s_g) {this->g = s_g;}
-	unsigned long long get_P(){return this->P;};
+	unsigned long long get_P(){return this->P;}
 	void set_P(unsigned long long s_P){this->P = s_P;}
-	
+	unsigned long long get_B()
+	{
+		if (this->B == 0)
+		{
+			this->gen_B();
+			return this->B;
+		}else
+			return this->B;
+	}
+
 	bool compareRecievedKeyAndMyKey(unsigned long long B)
 	{
 		unsigned long long s_K = (unsigned long long) pow(B, this->a) % this->P;
@@ -49,7 +63,7 @@ struct Client
 		else
 			return false;
 	}
-
+	// генерируем нашу степень
 	void gen_a() 
 	{
 		if (this->P != 0)
@@ -58,9 +72,38 @@ struct Client
 			this->a = (rand() % (P-4)) + 2;
 		}
 	}
+	// генерируем наш B
+	void gen_B()
+	{
+		if (this->g != 0 && this->P != 0 && this->a != 0)
+			this->B = (unsigned long long) pow(g, this->a) % (this->P);
+	}
 	void gen_Key(unsigned long long B)
 	{
-		this->Key =(unsigned long long) pow(B, this->a) % (this->P);
+		this->Key = (unsigned long long) pow(B, this->a) % (this->P);
+	}
+	// функция отправляет число B которое у нее запрашивают!
+	void sendMyB(SOCKET sock, std::string status)
+	{
+		std::string send_str;
+		// сначала скипаем прослушивание сокета нашим собственным
+		// серверным потоком ЕСЛИ это НУЖНО.
+		if(status == "SKIP")
+			send(sock, "[off]", strlen("[off]") * sizeof(char) , 0);
+		// а тепень отправляем наш B
+		send_str = "[MY_B]:" + std::to_string(this->B);
+		send(sock, send_str.c_str(), send_str.length() * sizeof(char), 0);
+	}
+	void sendBInMyA(SOCKET sock, unsigned long long s_B, std::string status)
+	{
+		std::string send_str;
+		// сначала скипаем прослушивание сокета нашим собственным
+		// серверным потоком ЕСЛИ это НУЖНО.
+		if(status == "SKIP")
+			send(sock, "[off]", strlen("[off]") * sizeof(char) , 0);
+		// а тепень отправляем сгенерированный B
+		send_str = "[MY_B]:" + std::to_string((unsigned long long) pow(s_B, this->a) % (this->P));
+		send(sock, send_str.c_str(), send_str.length() * sizeof(char), 0);
 	}
 
 private:
@@ -72,6 +115,7 @@ int sendOver = 0;
 DWORD WINAPI recvProcess(LPVOID param_sock);
 DWORD WINAPI sendProcess(LPVOID param_sock);
 std::string SENTENCE_ANSWERING = "[NO]";
+bool GET_B_IN_MY_A_REQUEST = false;
 Client *MyClient = new Client();
 
 
@@ -160,61 +204,92 @@ DWORD WINAPI recvProcess(LPVOID param_sock)
 		if (!sendOver)
 		{
 			buff[nsize] = 0;
-			if(!strncmp(buff, "[IN_CRYPTOCHAT]", strlen("[IN_CRYPTOCHAT]")))
+			if(!strncmp(buff, "[SKIP][GET_YOUR_B]", strlen("[SKIP][GET_YOUR_B]")))
+			{ 
+				MyClient->sendMyB(my_sock, "SKIP");
+			} else if(!strncmp(buff, "[NO_SKIP][GET_YOUR_B]", strlen("[NO_SKIP][GET_YOUR_B]")))
+			{ 
+				MyClient->sendMyB(my_sock, "NO_SKIP");
+			} else if(!strncmp(buff, "[SKIP][GET_B_IN_MY_A_REQUEST]:", strlen("[SKIP][GET_B_IN_MY_A_REQUEST]:")))
+			{ 
+				buffstr = buff;
+				buffstr = buffstr.substr(strlen("[SKIP][GET_B_IN_MY_A_REQUEST]:"));
+				unsigned long long B = std::stoull(buffstr);
+				MyClient->sendBInMyA(my_sock, B, "SKIP");
+			} else if(!strncmp(buff, "[NO_SKIP][GET_B_IN_MY_A_REQUEST]:", strlen("[NO_SKIP][GET_B_IN_MY_A_REQUEST]:")))
+			{ 
+				buffstr = buff;
+				buffstr = buffstr.substr(strlen("[NO_SKIP][GET_B_IN_MY_A_REQUEST]:"));
+				unsigned long long B = std::stoull(buffstr);
+				MyClient->sendBInMyA(my_sock, B, "NO_SKIP");
+			} else if(!strncmp(buff, "[IN_CRYPTOCHAT]", strlen("[IN_CRYPTOCHAT]")))
 			{ 
 				MyClient->crypto_flag = true;
-			}if(!strncmp(buff, "[OUT_CRYPTOCHAT]", strlen("[OUT_CRYPTOCHAT]")))
+			} else if(!strncmp(buff, "[OUT_CRYPTOCHAT]", strlen("[OUT_CRYPTOCHAT]")))
 			{ 
 				MyClient->crypto_flag = false;
-			} if(!strncmp(buff, "[SENTENCE_FROM_ME]:", strlen("[SENTENCE_FROM_ME]:")))
+			} else if(!strncmp(buff, "[SENTENCE_FROM_ME]:", strlen("[SENTENCE_FROM_ME]:")))
 			{
 				SENTENCE_ANSWERING = "[SENTENCE_FROM_ME]";
 				buffstr = buff;
 				buffstr = buffstr.substr(strlen("[SENTENCE_FROM_ME]:"));
 				std::cout << buffstr << std::endl;
-			} else
-			if(!strncmp(buff, "[SENTENCE_FROM_ANOTHER]:", strlen("[SENTENCE_FROM_ANOTHER]:")))
+			} else if(!strncmp(buff, "[SENTENCE_FROM_ANOTHER]:", strlen("[SENTENCE_FROM_ANOTHER]:")))
 			{
 				SENTENCE_ANSWERING = "[SENTENCE_FROM_ANOTHER]";
 				buffstr = buff;
 				buffstr = buffstr.substr(strlen("[SENTENCE_FROM_ANOTHER]:"));
 				std::cout << buffstr << std::endl;
-			}if(!strncmp(buff, "[B_TO_CREATE_KEYGEN]:", strlen("[B_TO_CREATE_KEYGEN]:")))
+			} else if(!strncmp(buff, "[B_TO_KEYGEN]:", strlen("[B_TO_KEYGEN]:")))
 			{
 				buffstr = buff;
-				buffstr = buffstr.substr(strlen("[B_TO_CREATE_KEYGEN]:"));
-				std::string::size_type sz = 0;
-				unsigned long long B = std::stoull(buffstr, &sz, 0);
+				buffstr = buffstr.substr(strlen("[B_TO_KEYGEN]:"));
+				
+				unsigned long long B = std::stoull(buffstr);
 				MyClient->gen_Key(B);
 			}
 				// присылается сообщение вида:
 				// [B_TO_COMPARE]:число_для_возведения_в_степень[MESSAGE]:шифротекст (на самом деле простой текст :=)
-			if(!strncmp(buff, "[B_TO_COMPARE]:", strlen("[B_TO_COMPARE]:")))
+			 else if(!strncmp(buff, "[B_TO_COMPARE]:", strlen("[B_TO_COMPARE]:")))
 			{
 				buffstr = buff;
-				buffstr = buffstr.substr(strlen("[B_TO_COMPARE]:"));
-				std::string::size_type sz = 0;
-				unsigned long long B = std::stoull(buffstr, &sz, 0);
+				std::size_t find_pos =  buffstr.find("[MESSAGE]:");
+				// вырезаем сообщение
+				std::string msg = buffstr.substr(find_pos + strlen("[MESSAGE]:"));
+				/// вырезаем число
+				buffstr = buffstr.substr(strlen("[B_TO_COMPARE]:"), find_pos);
+				unsigned long long B = std::stoull(buffstr);
+				// здесь у нас хранится сообщение!
+				// если у нас все совпало, и сооб
 				if(MyClient->compareRecievedKeyAndMyKey(B))
 				{
-					
+					std::cout << msg << std::endl;
 					/////////////////////////////////////////////////
+				}else
+				// если не совпало ничего!
+				{
+					std::cout << "Пришло сообщение из недоверенного источника!" << std::endl; 
 				}
-			}if(!strncmp(buff, "[SET_G]:", strlen("[SET_G]:")))
+			// если пришло сообщение вида:
+			// [SET_G]:g_number[SET_P]:P_number
+			// установка g и P
+			} else if(!strncmp(buff, "[SET_G]:", strlen("[SET_G]:")))
 			{
 				buffstr = buff;
-				buffstr = buffstr.substr(strlen("[SET_G]:"));
-				std::string::size_type sz = 0;
-				unsigned long long g = std::stoull(buffstr, &sz, 0);
-				MyClient->set_g(g);
-			}if(!strncmp(buff, "[SET_P]:", strlen("[SET_P]:")))
-			{
-				buffstr = buff;
-				buffstr = buffstr.substr(strlen("[SET_P]:"));
-				std::string::size_type sz = 0;
-				unsigned long long P = std::stoull(buffstr, &sz, 0);
+				// нашли часть, где начинается P
+				std::size_t find_pos = buffstr.find("[SET_P]:");
+				// вырезал P и оставили в буфере для преобразования!
+				buffstr = buffstr.substr(find_pos + strlen("[SET_P]:"));				
+				unsigned long long P = std::stoull(buffstr);
 				MyClient->set_P(P);
-			} else
+				buffstr = buff;
+				buffstr = buffstr.substr(strlen("[SET_G]:"), find_pos);				
+				unsigned long long g = std::stoull(buffstr);
+				MyClient->set_g(g);
+				// так как мы установили g и P
+				// то можем генерить степень!
+				MyClient->gen_a();
+			}else
 			{
 				buffstr = buff;
 				std::cout << buffstr << std::endl;
@@ -278,13 +353,15 @@ DWORD WINAPI sendProcess(LPVOID param_sock)
 			strcpy(buff1, buff);
 		}else if (MyClient->crypto_flag)// если мы в чате!
 		{
-			SENTENCE_ANSWERING = "[NO]";
-			// ничего не скипаем!
-			strcpy(buff1, buff);
+			////////////////////////////
+			//////////////////////////
+			///////////////////////////
+			//////////////////////////
+			// СОЗДАЕМ СООБЩЕНИЕ И ПРИПИСЫВАЕМ _B_
 		} else
 		{
 			strcpy(buff1, "[");
-			strcat(buff1, UserName);
+			strcat(buff1, MyClient->Name);
 			strcat(buff1, "] ");
 			strcat(buff1, buff);
 		}
@@ -299,7 +376,6 @@ void Client::Init(SOCKET sock)
 {
 	int bytes_recv;
 	char localbuff[1024];
-	char name[1024];
 		// ввод данных в строку!
 	while (true)
 	{

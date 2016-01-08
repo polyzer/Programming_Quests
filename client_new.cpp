@@ -30,7 +30,7 @@ struct Client
 	// шифрованном чате!
 	bool crypto_flag;
 	// имя клиента
-	char Name[20];
+	std::string Name;
 	// функция инициализации
 	void Init(SOCKET sock);
 	Client() {
@@ -320,7 +320,6 @@ DWORD WINAPI sendProcess(LPVOID param_sock)
 
 	std::string buffstr;
 	char buff[2*1024];
-	char buff1[2*1024];
 
 	while (true)
 	{
@@ -333,7 +332,7 @@ DWORD WINAPI sendProcess(LPVOID param_sock)
 			!strncmp(buff, "WANNA_LIST", strlen("WANNA_LIST"))||
 			!strncmp(buff, "WANNA_TO_QUIT_SUBCHAT", strlen("WANNA_TO_QUIT_SUBCHAT")))
 		{
-			strcpy(buff1, buff);
+			buffstr = buff;
 		} else if(!strcmp(&buff[0], "quit\n"))
 		{
 			printf("Exit...");
@@ -345,12 +344,12 @@ DWORD WINAPI sendProcess(LPVOID param_sock)
 			// скипаем прослушивание канала от нашего потока,
 			// чтобы отправить данные в спрашивающий!
 			send(my_sock, "[off]", strlen("[off]") * sizeof(char) , 0);
-			strcpy(buff1, buff);
+			buffstr = buff;
 		} else if (SENTENCE_ANSWERING == "[SENTENCE_FROM_ME]")// если отвечаем на запрос!
 		{
 			SENTENCE_ANSWERING = "[NO]";
 			// ничего не скипаем!
-			strcpy(buff1, buff);
+			buffstr = buff;
 		}else if (MyClient->crypto_flag)// если мы в чате!
 		{
 			////////////////////////////
@@ -358,17 +357,15 @@ DWORD WINAPI sendProcess(LPVOID param_sock)
 			///////////////////////////
 			//////////////////////////
 			// СОЗДАЕМ СООБЩЕНИЕ И ПРИПИСЫВАЕМ _B_
+			buffstr = "[B_TO_COMPARE]:" + std::to_string(MyClient->get_B()) + "[MESSAGE]:" + "[" + MyClient->Name + "]" + buff;
 		} else
 		{
-			strcpy(buff1, "[");
-			strcat(buff1, MyClient->Name);
-			strcat(buff1, "] ");
-			strcat(buff1, buff);
+			buffstr = "[" + MyClient->Name + "]" + buff;
 		}
 		// отправка сообщения
 		// в if-ах что выше
 		// мы просто создаем это сообщение, которое будет отправлено
-		send(my_sock, &buff1[0], strlen(buff1)*sizeof(char), 0);
+		send(my_sock, buffstr.c_str(), buffstr.length()*sizeof(char), 0);
 	}
 }
 
@@ -376,14 +373,17 @@ void Client::Init(SOCKET sock)
 {
 	int bytes_recv;
 	char localbuff[1024];
+	char locname[20];
 		// ввод данных в строку!
 	while (true)
 	{
 		printf("Введите nickname: \n");
-		gets(this->Name);
-		send(sock, &(this->Name)[0], strlen((this->Name))*sizeof(char), 0);	
+		gets(locname);
+		this->Name = locname;
+		send(sock, this->Name.c_str(), this->Name.length()*sizeof(char), 0);	
 		bytes_recv = recv(sock, &localbuff[0], sizeof(localbuff), 0);
 		localbuff[bytes_recv] = 0;
+		// если нам пришло не [NICKNAME_OK]
 		if(strncmp(localbuff, "[NICKNAME_OK]", strlen("[NICKNAME_OK]")))
 		{
 			printf("%s", localbuff);
@@ -391,6 +391,7 @@ void Client::Init(SOCKET sock)
 		else
 		{
 			printf("Можете общаться! \n");
+			return;
 		}
 	}
 

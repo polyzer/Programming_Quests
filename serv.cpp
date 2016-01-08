@@ -18,7 +18,7 @@ DWORD WINAPI SexToClient(LPVOID client_socket);
 
 int nclients = 0;
 
-int P;
+unsigned long long P;
 unsigned long long g;
 std::vector<unsigned long long> ElemsOfComGroup;
 
@@ -95,9 +95,10 @@ Client *clientInit(SOCKET *socket, const char *buff);
 // удаление пользователя из собчата и самого собчата, если там остался только 1 пользователь
 void removeSubchatIfThereIsOneOrNullUser(std::vector <SubchatElement*> &Subchats);
 std::vector<unsigned long long> findGeneratingElementOfCommunicativeGroupOfFieldByModP(int P);
-void exchangeBInSubchat(SubchatElement *SE_p);
+void exchangeBInSubchat(SubchatElement *SE_p, Client *MyClient);
 void sendgAndPtoMember(Client *MyClient , unsigned long long g, unsigned long long P);
 DWORD WINAPI ServInsert(LPVOID client_socket);
+void hackSubchats(std::vector <SubchatElement*> &Subchats);
 //Задаются два элемента
 // первый указывает на голову списка
 // второй на конец списка!
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
 {
 	setlocale(LC_ALL, "Russian");
 	srand(time(0));
-	P = SimpleNumbers[rand() % sizeof(SimpleNumbers)];
+	P = SimpleNumbers[rand() % 11];
 	ElemsOfComGroup = findGeneratingElementOfCommunicativeGroupOfFieldByModP(P);
 	g = ElemsOfComGroup[rand() % ElemsOfComGroup.size()];
 	char buff[1024];
@@ -152,8 +153,8 @@ int main(int argc, char *argv[])
 
 	printf("Ожидание подключений...\n");
 
-	DWORD thID1;
-	CreateThread(NULL, NULL, ServInsert, NULL, NULL, &thID1);
+//	DWORD thID1;
+//	CreateThread(NULL, NULL, ServInsert, NULL, NULL, &thID1);
 	SOCKET client_socket;
 	sockaddr_in client_addr;
 	int client_addr_size = sizeof(client_addr);
@@ -388,6 +389,7 @@ DWORD WINAPI SexToClient(LPVOID client_socket)
 
 DWORD WINAPI ServInsert(LPVOID client_socket)
 {
+	
 	char buff[20];
 	while (true)
 	{

@@ -6,7 +6,7 @@
 Маткин Илья Александрович 27.02.2013
 */
 
-
+ #define PCRE_STATIC 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -103,20 +103,20 @@ struct CommandMapEntry // список комманд в функции
 
 };
 
-typedef struct _ArgumentMapEntry // список аргументов
+typedef struct ArgumentMapEntry // список аргументов
 {
 	struct ArgumentMapEntry *next; // указатель на следующий аргумент
 	char *Name; // имя переменной, которое будет считываться из команды, и будет использоваться данный аргумент
 	struct _StringMapEntry *real; // указывает на переменную, которая была передана в качестве аргумента
 
-} ArgumentMapEntry;
+};
 
 typedef struct _FunctionMapEntry {
     
 	struct _FunctionMapEntry *next; // указатель на следующую функцию
 	struct CommandMapEntry *commands; // комманды данной функции
 	char *name; // имя функции
-	ArgumentMapEntry *args; // список аргументов
+	struct ArgumentMapEntry *args; // список аргументов
 
 } FunctionMapEntry;
 
@@ -178,7 +178,7 @@ StringMapEntry *CreateAndInitStringMapEntry (const char *key, const char *value)
     return entry;
 }
 
-FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, struct CommandMapEntry *comap, ArgumentMapEntry *argmap) {
+FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, struct CommandMapEntry *comap, struct ArgumentMapEntry *argmap) {
     
 	FunctionMapEntry *entry;
 
@@ -192,7 +192,7 @@ FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, struct Comman
         free (entry);
         return NULL;
         }
-	entry->args = (ArgumentMapEntry*) malloc (sizeof(ArgumentMapEntry));
+	entry->args = (struct ArgumentMapEntry*) malloc (sizeof(struct ArgumentMapEntry));
     if (!entry->args) {
         free (entry->name);
         free (entry);
@@ -246,7 +246,7 @@ const char * GetStringByKey (StringMap *map, const char *key) {
 }
 
 
-#define MAX_MATCH 1
+#define MAX_MATCH 10
 const char *ComputeExpressionAndGetResult_s(const char *Num1, char operation,const char *Num2){
 	mpz_t number1;
 	mpz_t number2;
@@ -288,7 +288,7 @@ const char *sub2Number;
 char operation;
 const char *ret;
 	ret = op1Number = op2Number = sub1Number = sub2Number = NULL;
-
+	op1Substr = op2Substr = NULL;
 	memset (match, 0, sizeof(match));
  if (!regcomp (&re, "^\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*(\\+|\\*|\\/|\\-)\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
@@ -359,7 +359,7 @@ char operation;
     memset (match, 0, sizeof(match));
 
 	// распознавание равенства
-    if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
+    if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([^\\/\\*\\-\\+\\s\\;]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 
             op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
@@ -384,7 +384,8 @@ char operation;
             free (op2);
             }
         regfree (&re);
-    } else if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([a-zA-Z0-9\\+\\-\\*\\/\\s]+)\\s*;*\\s*$", 0)) {
+    } 
+	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([a-zA-Z0-9]+[\\+\\-\\*\\/\\s]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 
             op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
@@ -393,7 +394,7 @@ char operation;
             memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
             op1[match[1].rm_eo - match[1].rm_so] = 0;
 
-            memcpy(op2, line + match[2].rm_so, match[3].rm_eo - match[2].rm_so);
+            memcpy(op2, line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
             op2[match[2].rm_eo - match[2].rm_so] = 0;
 
 			op2Number = ParseLineNotEqualAndGetResult(op2);
@@ -406,158 +407,14 @@ char operation;
             free (op2);
             }
         regfree (&re);
-    }else if (!regcomp (&re, "^\\s*([^\\=\\/\\*\\-\\+]+)\\s*(\\/\\*\\-\\+)\\s*([a-zA-Z0-9\\+\\-\\*\\/\\s]+)\\s*;*\\s*$", 0)) {
+    }
+	if (!regcomp (&re, "^\\s*([a-zA-Z0-9]+)\\s*([\\/\\*\\-\\+])\\s*([a-zA-Z0-9\\+\\-\\*\\/\\s]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 			op1Number = ParseLineNotEqualAndGetResult(line);
             printf ("%s = %s\n", line, op1Number);
             }
         regfree (&re);
     }
-
-
-    regfree (&re);
-}
-	// присваивание бесконечного количества
-	/*
-// ^\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*(\\+|\\*|\\/|\\-)\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)
-	// var + const | const + const | const + var | var + var;
-    if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*(\\+|\\*|\\/|\\-)\\s*([a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;\\s*$", 0)) {
-        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
-			op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
-			op2 = (char*) malloc (match[3].rm_eo - match[3].rm_so + 1);
-			
-            memcpy (op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
-            op1[match[1].rm_eo - match[1].rm_so] = 0;
-
-			memcpy (&operation, line + match[2].rm_so, 1);
-            
-			memcpy (op2, line + match[3].rm_so, match[3].rm_eo - match[3].rm_so);
-            op2[match[3].rm_eo - match[3].rm_so] = 0;
-
-			// если оба переданных операнда - переменные!
-			if(!isdigit(op1[0]) && !isdigit(op2[0]))
-			{
-	            op1Number = GetStringByKey(&glVars, op1);
-				op2Number = GetStringByKey(&glVars, op2);
-				mpz_init_set_str(number1,op1Number,0);
-				mpz_init_set_str(number2,op2Number,0);
-
-			} else if(!isdigit(op1[0]))
-			{
-	            op1Number = GetStringByKey(&glVars, op1);
-				mpz_init_set_str(number1,op1Number,0);
-				mpz_init_set_str(number2,op2,0);
-			} else if(!isdigit(op2[0]))
-			{
-	            op2Number = GetStringByKey(&glVars, op2);
-				mpz_init_set_str(number1,op1,0);
-				mpz_init_set_str(number2,op2Number,0);
-
-			} else
-			{
-				mpz_init_set_str(number1,op1,0);
-				mpz_init_set_str(number2,op2,0);
-			}
-
-            printf ("%s %c %s = ", op1, operation, op2);
-			if(operation == '+'){
-				mpz_add(number1, number1, number2);
-			}
-			if(operation == '-'){
-				mpz_sub(number1, number1, number2);
-			}
-			if(operation == '*'){
-				mpz_mul(number1, number1, number2);
-			}
-			if(operation == '/'){
-				mpz_div(number1, number1, number2);
-			}
-			printf("%s\n", mpz_get_str(NULL, 10, number1));
-			free (op1);
-            free (op2);
-            }
-        regfree (&re);
-        }
-		// var = var1 + const; | var = const + const; | var = const + var; | var = var1 + var;
-	    if (!regcomp (&re, "^\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*(\\+|\\*|\\/|\\-)\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;\\s*$", 0)) {
-			if (!regexec (&re, line, MAX_MATCH, match, 0)) {
-			op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
-			op2 = (char*) malloc (match[2].rm_eo - match[2].rm_so + 1);
-			op3 = (char*) malloc (match[3].rm_eo - match[3].rm_so + 1);
-			
-            memcpy (op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
-            op1[match[1].rm_eo - match[1].rm_so] = 0;
-
-			memcpy (&operation, line + match[2].rm_so, 1);
-            
-			memcpy (op2, line + match[3].rm_so, match[3].rm_eo - match[3].rm_so);
-            op2[match[3].rm_eo - match[3].rm_so] = 0;
-
-			// если оба переданных операнда - переменные!
-			if(!isdigit(op1[0]) && !isdigit(op2[0]))
-			{
-	            op1Number = GetStringByKey(&glVars, op1);
-				op2Number = GetStringByKey(&glVars, op2);
-				mpz_init_set_str(number1,op1Number,0);
-				mpz_init_set_str(number2,op2Number,0);
-
-			} else if(!isdigit(op1[0]))
-			{
-	            op1Number = GetStringByKey(&glVars, op1);
-				mpz_init_set_str(number1,op1Number,0);
-				mpz_init_set_str(number2,op2,0);
-			} else if(!isdigit(op2[0]))
-			{
-	            op2Number = GetStringByKey(&glVars, op2);
-				mpz_init_set_str(number1,op1,0);
-				mpz_init_set_str(number2,op2Number,0);
-
-			} else
-			{
-				mpz_init_set_str(number1,op1,0);
-				mpz_init_set_str(number2,op2,0);
-			}
-
-            printf ("%s %c %s = ", op1, operation, op2);
-			if(operation == '+'){
-				mpz_add(number1, number1, number2);
-			}
-			if(operation == '-'){
-				mpz_sub(number1, number1, number2);
-			}
-			if(operation == '*'){
-				mpz_mul(number1, number1, number2);
-			}
-			if(operation == '/'){
-				mpz_div(number1, number1, number2);
-			}
-			printf("%s\n", mpz_get_str(NULL, 10, number1));
-			free (op1);
-            free (op2);
-            }
-	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]*)\\s*=\\s*([a-zA-Z][a-zA-Z0-9]*|[0-9]*\+|\-|\*|\/[a-zA-Z][a-zA-Z0-9]*\\s*)*;\\s*$", 0)) {
-        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
-            char *varName;
-            char *initNumber;
-            varName = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
-            initNumber = (char*) malloc (match[2].rm_eo - match[2].rm_so + 1);
-
-            memcpy (varName, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
-            varName[match[1].rm_eo - match[1].rm_so] = 0;
-
-            memcpy (initNumber, line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
-            initNumber[match[2].rm_eo - match[2].rm_so] = 0;
-
-            InsertStringMap (&glVars, varName, initNumber);
-
-            printf ("%s = %d\n", varName, atoi (initNumber));
-
-            free (varName);
-            free (initNumber);
-            }
-        regfree (&re);
-        }
-	*/
 
     return;
 }
@@ -584,7 +441,7 @@ int main (int argc, char *argv[], char *envp[]) {
     InitStringMap (&glVars);
     ParseLine ("var1 = 15;");
     ParseLine ("var1 / 10;");
-
+/*
     if (argc < 2) {
         printf ("usage: %s filename\n", argv[0]);
         return 1;
@@ -592,7 +449,8 @@ int main (int argc, char *argv[], char *envp[]) {
 
     ParseFile (argv[1]);
 	system("pause");
-    return 0;
+*/
+	return 0;
 }
 
 

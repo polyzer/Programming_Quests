@@ -246,7 +246,7 @@ const char * GetStringByKey (StringMap *map, const char *key) {
 }
 
 
-#define MAX_MATCH 10
+#define MAX_MATCH 1
 const char *ComputeExpressionAndGetResult_s(const char *Num1, char operation,const char *Num2){
 	mpz_t number1;
 	mpz_t number2;
@@ -331,6 +331,7 @@ const char *ret;
 			{
 				op2Number = op2;				
 			}
+
 			ret = ComputeExpressionAndGetResult_s(op1Number, operation, op2Number);		
 			free (op1);
             free (op2);
@@ -353,22 +354,12 @@ char *op1;
 const char *op1Number;
 char *op2;
 const char *op2Number;
-char *op3;
-const char *op3Number;
-char *op4;
-const char *op4Number;
-char *op5;
-const char *op5Number;
 char operation;
-char operation1;
-char operation2;
-
-
 
     memset (match, 0, sizeof(match));
 
-	// var = const; | var = var;
-    if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]*)\\s*=\\s*([0-9]+)\\s*;\\s*$", 0)) {
+	// распознавание равенства
+    if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 
             op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
@@ -377,11 +368,12 @@ char operation2;
             memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
             op1[match[1].rm_eo - match[1].rm_so] = 0;
 
+
             memcpy(op2, line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
             op2[match[2].rm_eo - match[2].rm_so] = 0;
 
 			if (isdigit(op2[0])){
-				InsertStringMap(&glVars, op2, op2);
+				InsertStringMap(&glVars, op1, op2);
 	            printf ("%s = %s\n", op1, op2);
 			}else{
 				op2Number = GetStringByKey(&glVars, op2);
@@ -392,7 +384,41 @@ char operation2;
             free (op2);
             }
         regfree (&re);
-        }
+    } else if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([a-zA-Z0-9\\+\\-\\*\\/\\s]+)\\s*;*\\s*$", 0)) {
+        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
+
+            op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
+            op2 = (char*) malloc (match[2].rm_eo - match[2].rm_so + 1);
+
+            memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+            op1[match[1].rm_eo - match[1].rm_so] = 0;
+
+            memcpy(op2, line + match[2].rm_so, match[3].rm_eo - match[2].rm_so);
+            op2[match[2].rm_eo - match[2].rm_so] = 0;
+
+			op2Number = ParseLineNotEqualAndGetResult(op2);
+
+			InsertStringMap(&glVars, op1, op2Number);
+			
+            printf ("%s = %s\n", op1, op2Number);
+
+            free (op1);
+            free (op2);
+            }
+        regfree (&re);
+    }else if (!regcomp (&re, "^\\s*([^\\=\\/\\*\\-\\+]+)\\s*(\\/\\*\\-\\+)\\s*([a-zA-Z0-9\\+\\-\\*\\/\\s]+)\\s*;*\\s*$", 0)) {
+        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
+			op1Number = ParseLineNotEqualAndGetResult(line);
+            printf ("%s = %s\n", line, op1Number);
+            }
+        regfree (&re);
+    }
+
+
+    regfree (&re);
+}
+	// присваивание бесконечного количества
+	/*
 // ^\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*(\\+|\\*|\\/|\\-)\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)
 	// var + const | const + const | const + var | var + var;
     if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*(\\+|\\*|\\/|\\-)\\s*([a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;\\s*$", 0)) {
@@ -509,10 +535,6 @@ char operation2;
 			free (op1);
             free (op2);
             }
-        regfree (&re);
-        }
-	// присваивание бесконечного количества
-	/*
 	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]*)\\s*=\\s*([a-zA-Z][a-zA-Z0-9]*|[0-9]*\+|\-|\*|\/[a-zA-Z][a-zA-Z0-9]*\\s*)*;\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
             char *varName;

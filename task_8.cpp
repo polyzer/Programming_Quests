@@ -267,8 +267,10 @@ const char *ComputeExpressionAndGetResult_s(const char *Num1, char operation,con
 	if(operation == '/'){
 		mpz_div(number1, number1, number2);
 	}
-
 	ret = mpz_get_str(NULL, 10, number1);
+	mpz_clear(number1);
+	mpz_clear(number2);
+	return ret;
 
 }
 
@@ -279,8 +281,10 @@ regex_t re;
 regmatch_t match[MAX_MATCH];
 char *op1;
 const char *op1Number;
+mpz_t number1;
 char *op2;
 const char *op2Number;
+mpz_t number2;
 char *op1Substr;
 const char *sub1Number;
 char *op2Substr;
@@ -290,7 +294,30 @@ const char *ret;
 	ret = op1Number = op2Number = sub1Number = sub2Number = NULL;
 	op1Substr = op2Substr = NULL;
 	memset (match, 0, sizeof(match));
- if (!regcomp (&re, "^\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*(\\+|\\*|\\/|\\-)\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;*\\s*$", 0)) {
+	// если в выражении всего один операнд, без операций
+    if (!regcomp (&re, "^\\s*([^\\/\\*\\-\\+\\s\\(\\)][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
+        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
+
+            op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
+
+            memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+            op1[match[1].rm_eo - match[1].rm_so] = 0;
+
+			if (!isdigit(op1[0])){
+				op1Number = GetStringByKey(&glVars, op1);
+	            free (op1);
+			}else{
+				mpz_init_set_str(number1,op1,0);
+				op1Number = mpz_get_str(NULL, 10, number1);
+				free(op1);
+				mpz_clear(number1);
+			}
+		ret = op1Number;
+	}
+        regfree (&re);
+    } 
+	// если в строке есть операции
+	if (!regcomp (&re, "^\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*(\\+|\\*|\\/|\\-)\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 			op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
 			op2 = (char*) malloc (match[3].rm_eo - match[3].rm_so + 1);
@@ -306,30 +333,35 @@ const char *ret;
 			// если операнды - скобки ->
 			if(op1[0] =='(')
 			{
-				op1Substr = (char*) malloc (sizeof(op1) - 2);
-				memcpy (op1Substr, op1 + 1, sizeof(op1) - 2);
-				op1Substr[sizeof(op1Substr)] = 0;
+				op1Substr = (char*) malloc (strlen(op1)-1);
+				memcpy (op1Substr, op1 + 1, strlen(op1)-2);
+				op1Substr[strlen(op1)-2] = 0;
 				op1Number = ParseLineNotEqualAndGetResult(op1Substr);
+
 			} else if(!isdigit(op1[0]))
 			{
 	            op1Number = GetStringByKey(&glVars, op1);
 			} else
 			{
-				op1Number = op1;
+				mpz_init_set_str(number1,op1,0);
+				op1Number = mpz_get_str(NULL, 10, number1);
+				mpz_clear(number1);
 			}
 
 			if(op2[0] =='(')
 			{
-				op2Substr = (char*) malloc (sizeof(op2) - 2);
-				memcpy (op2Substr, op2 + 1, sizeof(op2) - 2);
-				op2Substr[sizeof(op2Substr)] = 0;
+				op2Substr = (char*) malloc (strlen(op2)-1);
+				memcpy (op2Substr, op2 + 1, strlen(op2)-2);
+				op2Substr[strlen(op2)-2] = 0;
 				op2Number = ParseLineNotEqualAndGetResult(op2Substr);
 			} else	if(!isdigit(op2[0]))
 			{
 	            op2Number = GetStringByKey(&glVars, op2);
 			} else
 			{
-				op2Number = op2;				
+				mpz_init_set_str(number2,op2,0);
+				op2Number = mpz_get_str(NULL, 10, number2);
+				mpz_clear(number2);
 			}
 
 			ret = ComputeExpressionAndGetResult_s(op1Number, operation, op2Number);		
@@ -341,7 +373,7 @@ const char *ret;
         regfree (&re);
 		return ret;
         }
-	
+	return NULL;
 }
 
 void ParseLine (const char *line) {
@@ -358,34 +390,7 @@ char operation;
 
     memset (match, 0, sizeof(match));
 
-	// распознавание равенства
-    if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([^\\/\\*\\-\\+\\s\\;]+)\\s*;*\\s*$", 0)) {
-        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
-
-            op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
-            op2 = (char*) malloc (match[2].rm_eo - match[2].rm_so + 1);
-
-            memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
-            op1[match[1].rm_eo - match[1].rm_so] = 0;
-
-
-            memcpy(op2, line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
-            op2[match[2].rm_eo - match[2].rm_so] = 0;
-
-			if (isdigit(op2[0])){
-				InsertStringMap(&glVars, op1, op2);
-	            printf ("%s = %s\n", op1, op2);
-			}else{
-				op2Number = GetStringByKey(&glVars, op2);
-	            printf ("%s = %s\n", op1, op2Number);
-			}
-
-            free (op1);
-            free (op2);
-            }
-        regfree (&re);
-    } 
-	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([a-zA-Z0-9]+[\\+\\-\\*\\/\\s]+)\\s*;*\\s*$", 0)) {
+	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 
             op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
@@ -408,7 +413,7 @@ char operation;
             }
         regfree (&re);
     }
-	if (!regcomp (&re, "^\\s*([a-zA-Z0-9]+)\\s*([\\/\\*\\-\\+])\\s*([a-zA-Z0-9\\+\\-\\*\\/\\s]+)\\s*;*\\s*$", 0)) {
+	if (!regcomp (&re, "^\\s*([^\\=][a-zA-Z0-9\\s\\/\\*\\-\\+\\(\\)]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 			op1Number = ParseLineNotEqualAndGetResult(line);
             printf ("%s = %s\n", line, op1Number);
@@ -439,8 +444,8 @@ FILE *fd;
 int main (int argc, char *argv[], char *envp[]) {
 
     InitStringMap (&glVars);
-    ParseLine ("var1 = 15;");
-    ParseLine ("var1 / 10;");
+    ParseLine ("var1 = 250;");
+    ParseLine ("var1 / (10 + 15);");
 /*
     if (argc < 2) {
         printf ("usage: %s filename\n", argv[0]);
@@ -448,44 +453,8 @@ int main (int argc, char *argv[], char *envp[]) {
         }
 
     ParseFile (argv[1]);
-	system("pause");
 */
+	system("pause");
+
 	return 0;
 }
-
-
-/*
-int main(unsigned int argc,char *argv[]){
-
-mpz_t a;
-mpz_t b;
-mpz_t c;
-mpz_t d;
-mpz_t e;
-mpz_t f;
-mpz_t res;
-
-    mpz_init_set_str(a,"13134147134718327417348173294817394701639162309813204140518230471340176320513129846103247816034612034610234612390846102839641023419862130412034861023846102386401829364102834601892132412341234123412341234123412341234123413241234123412341234123412341234123412341234123412341234123412341234123412341234123412341234123412341234134132412341234123412341234123847189234912374987123984712398471298347981237498123741293874981234781810923481093284091238409123840912834091823409182309481230948123094812309481239041823490128349123849012384123413284183247891234781237418239041092384",0);
-    mpz_init_set_str(b,"8910326918657362489173049817048710364891326401982364019823409816234098123409861230984612389461203984610293846120934610293846102934612930846102398641289306419823748912374812348912734891720346121387419082374908172340981723049817230948712039847109834709832134134132412341234123412341234123412341234810293849123481092384091238409123849102384019238401923840912384901238401923849012384901238491283491324132419238409128340918234913413241234192384910238401923840912384091238409123840912384901238401923840912384019234890818324908123094812309481923048091234812034981920341341341234",0);
-
-
-    //mpz_mul(res,a,b);
-    mpz_init (res);
-    mpz_init (c);
-    mpz_powm_ui(c, a, 2, b);    // c = a^2 (mod b)
-    mpz_mul (c, a, b);
-    
-    // res = a^b (mod c)
-    calculate_time (start, end, mpz_powm (res, a, b, c));
-    //mpz_powm (res, a, b, c);
-
-    gmp_printf("%Zd\n*\n%Zd\n=\n%Zd",a,b,c);
-
-    mpz_clear(res);
-    mpz_clear(b);
-    mpz_clear(a);
-    mpz_clear(c);
-
-    return 0;
-}
-*/

@@ -137,6 +137,7 @@ typedef FunctionMap FunctionContainer;
 
 
 VariableContainer glVars;
+FunctionContainer glFuncs;
 
 //----------------------------------------
 
@@ -229,7 +230,28 @@ void InsertStringMap (StringMap *map, const char *key, const char *value) {
     return;
 }
 
+// вставка строки в список
+void InsertFunctionMap (FunctionMap *map, const char *name, struct CommandMapEntry *comap, struct ArgumentMapEntry *argmap) {
 
+	FunctionMapEntry *newEntry;
+	FunctionMapEntry *tt;
+    newEntry = CreateAndInitFunctionMapEntry (name, comap, argmap);
+    if (!newEntry) {
+        return;
+        }
+	if(map->first == NULL)
+	{
+		map->first = newEntry;
+		return;
+	}
+	tt = map->first;
+	while(tt->next!= NULL)
+	{
+		tt = tt->next;
+	}
+	tt->next = newEntry;
+    return;
+}
 
 const char * GetStringByKey (StringMap *map, const char *key) {
 
@@ -248,18 +270,23 @@ const char * GetStringByKey (StringMap *map, const char *key) {
 // 0 - в противном случае
 int ComputeNumberOfBrackets(const char *str)
 {
-	int BraCounter, KetCounter, i;
+	int BraCounter, KetCounter, i, direction;
 	BraCounter = KetCounter = 0;
+	direction = 2;
 	for(i = 0; i < strlen(str); i++)
 	{
-		if(str[i] == '(')
+		if(str[i] == '('){
 			BraCounter++;
-		if(str[i] == ')')
+			direction = 0;
+		}
+		if(str[i] == ')'){
 			KetCounter++;
+			direction = 1;
+		}
 	}
 	if (BraCounter > 0 && KetCounter > 0)
 	{
-		if(BraCounter == KetCounter)
+		if(BraCounter == KetCounter && direction == 1)
 			return 1;
 		else
 			return 0;
@@ -339,7 +366,7 @@ const char *ret;
         regfree (&re);
     } 
 	// если в строке есть операции
-	if (!regcomp (&re, "^\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*([\\/\\*\\-\\+])\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+]+\\)|[a-zA-Z0-9\\s\\/\\*\\-\\+\\(\\)]+)\\s*;*\\s*$", 0)) {
+	if (!regcomp (&re, "^\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+\\(\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*([\\/\\*\\-\\+])\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+]+\\)|[a-zA-Z0-9\\s\\/\\*\\-\\+\\(\\)]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 			op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
 			op2 = (char*) malloc (match[3].rm_eo - match[3].rm_so + 1);
@@ -491,7 +518,8 @@ FILE *fd;
 int main (int argc, char *argv[], char *envp[]) {
 
     InitStringMap (&glVars);
-    ParseLine ("var1 = (250 - 150) * (8 + 2) + 10;");
+
+    ParseLine ("var1 = (250 - 150) * (10-20);");
     ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");
 /*
     if (argc < 2) {

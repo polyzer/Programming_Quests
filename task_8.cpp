@@ -244,6 +244,28 @@ const char * GetStringByKey (StringMap *map, const char *key) {
 
     return NULL;
 }
+// 1 - если количество ( == количеству ),
+// 0 - в противном случае
+int ComputeNumberOfBrackets(const char *str)
+{
+	int BraCounter, KetCounter, i;
+	BraCounter = KetCounter = 0;
+	for(i = 0; i < strlen(str); i++)
+	{
+		if(str[i] == '(')
+			BraCounter++;
+		if(str[i] == ')')
+			KetCounter++;
+	}
+	if (BraCounter > 0 && KetCounter > 0)
+	{
+		if(BraCounter == KetCounter)
+			return 1;
+		else
+			return 0;
+	}
+	return 1;
+}
 
 
 #define MAX_MATCH 10
@@ -317,7 +339,7 @@ const char *ret;
         regfree (&re);
     } 
 	// если в строке есть операции
-	if (!regcomp (&re, "^\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*(\\+|\\*|\\/|\\-)\\s*(\\([^\\)]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;*\\s*$", 0)) {
+	if (!regcomp (&re, "^\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*([\\/\\*\\-\\+])\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+]+\\)|[a-zA-Z0-9\\s\\/\\*\\-\\+\\(\\)]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 			op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
 			op2 = (char*) malloc (match[3].rm_eo - match[3].rm_so + 1);
@@ -330,13 +352,25 @@ const char *ret;
 			memcpy (op2, line + match[3].rm_so, match[3].rm_eo - match[3].rm_so);
             op2[match[3].rm_eo - match[3].rm_so] = 0;
 
-			// если операнды - скобки ->
+			// если в операнде - скобки ->
 			if(op1[0] =='(')
 			{
-				op1Substr = (char*) malloc (strlen(op1)-1);
-				memcpy (op1Substr, op1 + 1, strlen(op1)-2);
-				op1Substr[strlen(op1)-2] = 0;
-				op1Number = ParseLineNotEqualAndGetResult(op1Substr);
+				// если выражение начинается и заканчивается скобкой
+				if(op1[0] == '(' && op1[strlen(op1)-1] == ')')
+				{
+					op1Substr = (char*) malloc (strlen(op1)-1);
+					memcpy (op1Substr, op1 + 1, strlen(op1)-2);
+					op1Substr[strlen(op1)-2] = 0;
+					// если в выражении в скобках одинаковое количество (),
+					// то отправляем это выражение на обработку, если нет - то не вырезаем скобки и отправляем на обработку
+					if(ComputeNumberOfBrackets(op1Substr))
+						op1Number = ParseLineNotEqualAndGetResult(op1Substr);
+					else
+						op1Number = ParseLineNotEqualAndGetResult(op1);
+				} else
+				{
+					op1Number = ParseLineNotEqualAndGetResult(op1);
+				}
 
 			} else if(!isdigit(op1[0]))
 			{
@@ -350,10 +384,23 @@ const char *ret;
 
 			if(op2[0] =='(')
 			{
-				op2Substr = (char*) malloc (strlen(op2)-1);
-				memcpy (op2Substr, op2 + 1, strlen(op2)-2);
-				op2Substr[strlen(op2)-2] = 0;
-				op2Number = ParseLineNotEqualAndGetResult(op2Substr);
+				// если выражение начинается и заканчивается скобкой
+				if(op2[0] == '(' && op2[strlen(op2)-1] == ')')
+				{
+					op2Substr = (char*) malloc (strlen(op2)-1);
+					memcpy (op2Substr, op2 + 1, strlen(op2)-2);
+					op2Substr[strlen(op2)-2] = 0;
+					// если в выражении в скобках одинаковое количество (),
+					// то отправляем это выражение на обработку, если нет - то не вырезаем скобки и отправляем на обработку
+					if(ComputeNumberOfBrackets(op2Substr))
+						op2Number = ParseLineNotEqualAndGetResult(op2Substr);
+					else
+						op2Number = ParseLineNotEqualAndGetResult(op2);
+				} else
+				{
+					op2Number = ParseLineNotEqualAndGetResult(op2);
+				}
+
 			} else	if(!isdigit(op2[0]))
 			{
 	            op2Number = GetStringByKey(&glVars, op2);
@@ -390,7 +437,7 @@ char operation;
 
     memset (match, 0, sizeof(match));
 
-	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*(\\([a-zA-Z0-9\\s\\/\\*\\-\\+]+\\)|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;*\\s*$", 0)) {
+	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([a-zA-Z0-9\\s\\/\\*\\-\\+\\s\\(\\)]+|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 
             op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
@@ -444,8 +491,8 @@ FILE *fd;
 int main (int argc, char *argv[], char *envp[]) {
 
     InitStringMap (&glVars);
-    ParseLine ("var1 = 250;");
-    ParseLine ("var1 / (10 + 15);");
+    ParseLine ("var1 = (250 - 150) * (8 + 2) + 10;");
+    ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");
 /*
     if (argc < 2) {
         printf ("usage: %s filename\n", argv[0]);

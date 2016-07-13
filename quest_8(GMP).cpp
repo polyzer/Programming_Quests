@@ -107,12 +107,11 @@ struct CommandMapEntry // список комманд в функции
 {
 	struct CommandMapEntry *next; // указатель на следующую
 	char *CommandString; // строка, содержащая команду, которая при каждом вызове будет интерпретироваться  
-
 };
 
 typedef struct _CommandMap
 {
-	CommandMapEntry *first;
+	struct CommandMapEntry *first;
 
 } CommandMap;
 
@@ -120,7 +119,7 @@ typedef CommandMap CommandContainer;
 
 ///////////////////////////////////// ARGUMENT STRUCTURES
 
-typedef struct ArgumentMapEntry // список аргументов
+struct ArgumentMapEntry // список аргументов
 {
 	struct ArgumentMapEntry *next; // указатель на следующий аргумент
 	char *name; // имя переменной, которое будет считываться из команды, и будет использоваться данный аргумент
@@ -130,7 +129,7 @@ typedef struct ArgumentMapEntry // список аргументов
 
 typedef struct _ArgumentMap
 {
-	ArgumentMapEntry *first;
+    struct	ArgumentMapEntry *first;
 
 } ArgumentMap;
 
@@ -169,29 +168,66 @@ struct CurrentReadingFunctionFieldsStruct
 	char *name;
 	ArgumentContainer *args;
 	CommandContainer *coms;
-};
+} CRFFObj;
 
 
 //----------------------------------------GLOBAL CONTAINERS
 
 VariableContainer glVars;
 FunctionContainer glFuncs;
-CurrentReadingFunctionFieldsStruct CRFFObj;
 //---------------------------------------- FUNCTIONS
 
-void InitCRFFObj(CurrentReadingFunctionFieldsStruct *Obj)
+void InitCRFFObj(struct CurrentReadingFunctionFieldsStruct *Obj)
 {
 	Obj->FunctionReadingMode = 0;
 	Obj->name = NULL;
 	Obj->args = NULL;
 	Obj->coms = NULL;
 }
+struct CommandMapEntry *CreateAndInitCommandMapEntry(const char *commandline)
+{
+	struct CommandMapEntry *entry;
+
+    entry = (struct CommandMapEntry*) malloc (sizeof(struct CommandMapEntry));
+    if (!entry) {
+        return NULL;
+        }
+
+	entry->CommandString = (char*) malloc (strlen (commandline) + 1);
+    if (!entry->CommandString) {
+        free (entry);
+        return NULL;
+        }
+	strcpy (entry->CommandString, commandline);
+	entry->next = NULL;
+    return entry;
+}
+
+struct ArgumentMapEntry *CreateAndInitArgumentMapEntry(const char *name)
+{
+	struct ArgumentMapEntry *entry;
+
+    entry = (struct ArgumentMapEntry*) malloc (sizeof(struct ArgumentMapEntry));
+    if (!entry) {
+        return NULL;
+        }
+
+    entry->name = (char*) malloc (strlen (name) + 1);
+    if (!entry->name) {
+        free (entry);
+        return NULL;
+        }
+	entry->real = NULL;
+    strcpy(entry->name, name);
+	entry->next = NULL;
+    return entry;
+}
 
 
 void InsertArgumentMap(ArgumentMap *amap, const char *name)
 {
-	ArgumentMapEntry *newEntry;
-	ArgumentMapEntry *tt;
+	struct  ArgumentMapEntry *newEntry;
+    struct	ArgumentMapEntry *tt;
     newEntry = CreateAndInitArgumentMapEntry (name);
     if (!newEntry) {
         return;
@@ -211,30 +247,11 @@ void InsertArgumentMap(ArgumentMap *amap, const char *name)
 	
 }
 
-ArgumentMapEntry *CreateAndInitArgumentMapEntry(const char *name)
-{
-	ArgumentMapEntry *entry;
-
-    entry = (ArgumentMapEntry*) malloc (sizeof(ArgumentMapEntry));
-    if (!entry) {
-        return NULL;
-        }
-
-    entry->name = (char*) malloc (strlen (name) + 1);
-    if (!entry->name) {
-        free (entry);
-        return NULL;
-        }
-	entry->real = NULL;
-    strcpy (entry->name, name);
-	entry->next = NULL;
-    return entry;
-}
 
 void InsertCommandMap(CommandMap *cmap, const char *name)
 {
-	CommandMapEntry *newEntry;
-	CommandMapEntry *tt;
+	struct CommandMapEntry *newEntry;
+	struct CommandMapEntry *tt;
     newEntry = CreateAndInitCommandMapEntry (name);
     if (!newEntry) {
         return;
@@ -252,25 +269,6 @@ void InsertCommandMap(CommandMap *cmap, const char *name)
 	tt->next = newEntry;
     return;
 	
-}
-
-CommandMapEntry *CreateAndInitCommandMapEntry(const char *commandline)
-{
-	CommandMapEntry *entry;
-
-    entry = (CommandMapEntry*) malloc (sizeof(CommandMapEntry));
-    if (!entry) {
-        return NULL;
-        }
-
-	entry->CommandString = (char*) malloc (strlen (commandline) + 1);
-    if (!entry->CommandString) {
-        free (entry);
-        return NULL;
-        }
-	strcpy (entry->CommandString, commandline);
-	entry->next = NULL;
-    return entry;
 }
 
 
@@ -577,7 +575,7 @@ const char *ret;
 	return NULL;
 }
 
-void SetCurrentFunctionName(CurrentReadingFunctionFieldsStruct *Obj, const char *name)
+void SetCurrentFunctionName(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name)
 {
 	Obj->name = (char *) malloc(strlen(name) + 1);
 	strcpy(Obj->name, name);
@@ -586,12 +584,12 @@ void SetCurrentFunctionName(CurrentReadingFunctionFieldsStruct *Obj, const char 
 	return;
 }
 
-void AddCurrentFunctionCommandLine(CurrentReadingFunctionFieldsStruct *Obj, const char *funcline)
+void AddCurrentFunctionCommandLine(struct CurrentReadingFunctionFieldsStruct *Obj, const char *funcline)
 {
 	InsertCommandMap(Obj->coms, funcline);
 }
 
-void ParseAndSetCurrentFunctionArguments(CurrentReadingFunctionFieldsStruct *Obj, const char *argline)
+void ParseAndSetCurrentFunctionArguments(struct CurrentReadingFunctionFieldsStruct *Obj, const char *argline)
 {
 	regex_t re;
 	regmatch_t match[MAX_MATCH];

@@ -82,6 +82,9 @@ clock_t end;
 
 //----------------------------------------
 //----------------------------------------
+
+//////////////////////////////////// STRING STRUCTURES
+
 typedef struct _StringMapEntry {
 
     struct _StringMapEntry *next;
@@ -96,6 +99,10 @@ typedef struct _StringMap {
 
 } StringMap;
 
+typedef StringMap VariableContainer;
+
+///////////////////////////////////// COMMAND STRUCTURES
+
 struct CommandMapEntry // список комманд в функции
 {
 	struct CommandMapEntry *next; // указатель на следующую
@@ -103,23 +110,42 @@ struct CommandMapEntry // список комманд в функции
 
 };
 
+typedef struct _CommandMap
+{
+	CommandMapEntry *first;
+
+} CommandMap;
+
+typedef CommandMap CommandContainer;
+
+///////////////////////////////////// ARGUMENT STRUCTURES
+
 typedef struct ArgumentMapEntry // список аргументов
 {
 	struct ArgumentMapEntry *next; // указатель на следующий аргумент
-	char *Name; // имя переменной, которое будет считываться из команды, и будет использоваться данный аргумент
+	char *name; // имя переменной, которое будет считываться из команды, и будет использоваться данный аргумент
 	struct _StringMapEntry *real; // указывает на переменную, которая была передана в качестве аргумента
 
 };
 
+typedef struct _ArgumentMap
+{
+	ArgumentMapEntry *first;
+
+} ArgumentMap;
+
+typedef ArgumentMap ArgumentContainer;
+
+///////////////////////////////// FUNCTION STRUCTURES
+
 typedef struct _FunctionMapEntry {
     
 	struct _FunctionMapEntry *next; // указатель на следующую функцию
-	struct CommandMapEntry *commands; // комманды данной функции
+	CommandContainer *commands; // комманды данной функции
 	char *name; // имя функции
-	struct ArgumentMapEntry *args; // список аргументов
+	ArgumentContainer *args; // список аргументов
 
 } FunctionMapEntry;
-
 
 typedef struct _FunctionMap
 {
@@ -127,31 +153,44 @@ typedef struct _FunctionMap
 
 } FunctionMap;
 
-
-
-
-typedef StringMap VariableContainer;
 typedef FunctionMap FunctionContainer;
 
-//----------------------------------------
+//////////////////////////////////////// CURRENT READING FUNCTION FIELDS STRUCTURE
 
+// структура, используемая при считывании функции в структуру
+struct CurrentReadingFunctionFieldsStruct
+{
+	// Указывает, что считывается функция
+	// 0 - не читаем функцию,
+	// 1 - читаем функцию
+	int FunctionReadingMode;
+	// Функция, которая сейчас считывается, в дальнейшем будет
+	// вставлена в список функций.
+	char *name;
+	ArgumentContainer *args;
+	CommandContainer *coms;
+};
+
+
+//----------------------------------------GLOBAL CONTAINERS
 
 VariableContainer glVars;
 FunctionContainer glFuncs;
+CurrentReadingFunctionFieldsStruct CRFFObj;
+//---------------------------------------- FUNCTIONS
 
-//----------------------------------------
-
-void InitFuncsMap (FunctionMap *fmap) {
-    fmap->first = NULL;
-    return;
+void InitCRFFObj(CurrentReadingFunctionFieldsStruct *Obj)
+{
+	Obj->name = NULL;
+	Obj->FunctionReadingMode = 0;
+	Obj->args = NULL;
+	Obj->coms = NULL;
 }
 
 void InitStringMap (StringMap *smap) {
     smap->first = NULL;
     return;
 }
-
-
 
 StringMapEntry *CreateAndInitStringMapEntry (const char *key, const char *value) {
     
@@ -179,34 +218,6 @@ StringMapEntry *CreateAndInitStringMapEntry (const char *key, const char *value)
     return entry;
 }
 
-FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, struct CommandMapEntry *comap, struct ArgumentMapEntry *argmap) {
-    
-	FunctionMapEntry *entry;
-
-    entry = (FunctionMapEntry*) malloc (sizeof(FunctionMapEntry));
-    if (!entry) {
-        return NULL;
-        }
-
-	entry->name = (char*) malloc (strlen(name) + 1);
-    if (!entry->name) {
-        free (entry);
-        return NULL;
-        }
-	entry->args = (struct ArgumentMapEntry*) malloc (sizeof(struct ArgumentMapEntry));
-    if (!entry->args) {
-        free (entry->name);
-        free (entry);
-        return NULL;
-        }
-    
-	entry->args = argmap;
-	entry->commands = comap;
-	strcpy(entry->name, name);
-	entry->next = NULL;
-    return entry;
-}
-
 // вставка строки в список
 void InsertStringMap (StringMap *map, const char *key, const char *value) {
 
@@ -230,8 +241,36 @@ void InsertStringMap (StringMap *map, const char *key, const char *value) {
     return;
 }
 
+void InitFuncsMap (FunctionMap *fmap) {
+    fmap->first = NULL;
+    return;
+}
+
+FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, CommandContainer *comap, ArgumentContainer *argmap) {
+    
+	FunctionMapEntry *entry;
+
+    entry = (FunctionMapEntry*) malloc (sizeof(FunctionMapEntry));
+    if (!entry) {
+        return NULL;
+        }
+
+	entry->name = (char*) malloc (strlen(name) + 1);
+    if (!entry->name) {
+        free (entry);
+        return NULL;
+        }
+    
+	entry->args = argmap;
+	entry->commands = comap;
+	strcpy(entry->name, name);
+	entry->next = NULL;
+
+	return entry;
+}
+
 // вставка строки в список
-void InsertFunctionMap (FunctionMap *map, const char *name, struct CommandMapEntry *comap, struct ArgumentMapEntry *argmap) {
+void InsertFunctionMap (FunctionMap *map, const char *name, CommandContainer *comap, ArgumentContainer *argmap) {
 
 	FunctionMapEntry *newEntry;
 	FunctionMapEntry *tt;
@@ -266,7 +305,8 @@ const char * GetStringByKey (StringMap *map, const char *key) {
 
     return NULL;
 }
-// 1 - если количество ( == количеству ),
+
+// 1 - если количество '(' == количеству ')',
 // 0 - в противном случае
 int ComputeNumberOfBrackets(const char *str)
 {
@@ -463,7 +503,24 @@ const char *op2Number;
 char operation;
 
     memset (match, 0, sizeof(match));
-
+	if(FunctionReadingMode)
+	{
+		SetFunctionLine(line);
+	}
+	// распознавание функции с аргументами
+	if (!regcomp (&re, "^\\s*function\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*\\(([a-zA-Z0-9\\s\\,]*)\\)\\s*;*\\s*$", 0)) {
+        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
+			FunctionReadingMode = 1;
+		}
+        regfree (&re);
+    }
+	// распознавание окончания функции
+	if (!regcomp (&re, "^\\s*end\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
+        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
+			FunctionReadingMode = 0;
+		}
+        regfree (&re);
+    }
 	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([a-zA-Z0-9\\s\\/\\*\\-\\+\\s\\(\\)]+|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 
@@ -516,9 +573,9 @@ FILE *fd;
 
 
 int main (int argc, char *argv[], char *envp[]) {
-
+	InitCRFFObj(&CRFFObj);
     InitStringMap (&glVars);
-
+	InitFuncsMap(&glFuncs);
     ParseLine ("var1 = (250 - 150) * (10-20);");
     ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");
 /*

@@ -588,21 +588,30 @@ void SetCurrentFunctionName(CurrentReadingFunctionFieldsStruct *Obj, const char 
 
 void AddCurrentFunctionCommandLine(CurrentReadingFunctionFieldsStruct *Obj, const char *funcline)
 {
-	regex_t re;
-	regmatch_t match[MAX_MATCH];
-    memset (match, 0, sizeof(match));
-	if (!regcomp (&re, "^\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
-        if (!regexec (&re, funcline, MAX_MATCH, match, 0)) {
-
-		}
-        regfree (&re);
-    }
-
+	InsertCommandMap(Obj->coms, funcline);
 }
 
 void ParseAndSetCurrentFunctionArguments(CurrentReadingFunctionFieldsStruct *Obj, const char *argline)
 {
-
+	regex_t re;
+	regmatch_t match[MAX_MATCH];
+	int i;
+	char *arg;
+    memset (match, 0, sizeof(match));
+	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
+        if (!regexec (&re, argline, MAX_MATCH, match, 0)) {
+			for(i=0;match[i].rm_eo!=-1;i++) 
+			{
+	            arg = (char*) malloc (match[i].rm_eo - match[i].rm_so + 1);
+				memcpy(arg, argline + match[i].rm_so, match[i].rm_eo - match[i].rm_so);
+				arg[match[i].rm_eo - match[i].rm_so] = 0;
+				InsertArgumentMap(Obj->args, arg);
+				free(arg);
+			}
+		}
+        regfree (&re);
+    }
+	return;
 }
 
 void ParseLine (const char *line) {
@@ -644,6 +653,7 @@ char operation;
 	if (!regcomp (&re, "^\\s*end\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 			CRFFObj.FunctionReadingMode = 0;
+			InsertFunctionMap(&glFuncs, (&CRFFObj)->name, (&CRFFObj)->coms, (&CRFFObj)->args);
 		}
         regfree (&re);
     }

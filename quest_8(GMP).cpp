@@ -184,6 +184,8 @@ void InitCRFFObj(struct CurrentReadingFunctionFieldsStruct *Obj)
 	Obj->args = NULL;
 	Obj->coms = NULL;
 }
+
+
 struct CommandMapEntry *CreateAndInitCommandMapEntry(const char *commandline)
 {
 	struct CommandMapEntry *entry;
@@ -260,10 +262,11 @@ void InsertCommandMap(struct CurrentReadingFunctionFieldsStruct *Obj, const char
     newEntry = CreateAndInitCommandMapEntry (name);
     if (!newEntry) {
         return;
-        }
+    }
 	if(Obj->coms == NULL)
 	{
 		Obj->coms = (CommandMap *) malloc(sizeof(CommandMap));
+		Obj->coms->first = NULL;
 	}
 	if(Obj->coms->first == NULL)
 	{
@@ -353,7 +356,7 @@ FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, CommandContai
     if (!entry->name) {
         free (entry);
         return NULL;
-        }
+    }
     
 	entry->args = argmap;
 	entry->commands = comap;
@@ -644,9 +647,21 @@ const char *op2Number;
 char operation;
 
     memset (match, 0, sizeof(match));
+
+	// распознавание окончания функции
+	if (!regcomp (&re, "^\\s*end\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
+        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
+			CRFFObj.FunctionReadingMode = 0;
+			InsertFunctionMap(&glFuncs, (&CRFFObj)->name, (&CRFFObj)->coms, (&CRFFObj)->args);
+			InitCRFFObj(&CRFFObj);
+		}
+        regfree (&re);
+    }
+	// если в режиме записи команд функции, записываем строку и выходим
 	if(CRFFObj.FunctionReadingMode == 1)
 	{
 		AddCurrentFunctionCommandLine(&CRFFObj, line);
+		return;
 	}
 	// распознавание функции с аргументами
 	if (!regcomp(&re, "^\\s*function\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*\\(([a-zA-Z0-9\\s\\,]*)\\)\\s*;*\\s*$", 0)) {
@@ -663,14 +678,6 @@ char operation;
 
 			SetCurrentFunctionName(&CRFFObj, op1);
 			ParseAndSetCurrentFunctionArguments(&CRFFObj, op2);
-		}
-        regfree (&re);
-    }
-	// распознавание окончания функции
-	if (!regcomp (&re, "^\\s*end\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
-        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
-			CRFFObj.FunctionReadingMode = 0;
-			InsertFunctionMap(&glFuncs, (&CRFFObj)->name, (&CRFFObj)->coms, (&CRFFObj)->args);
 		}
         regfree (&re);
     }

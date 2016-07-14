@@ -123,8 +123,8 @@ struct ArgumentMapEntry // список аргументов
 {
 	struct ArgumentMapEntry *next; // указатель на следующий аргумент
 	char *name; // имя переменной, которое будет считываться из команды, и будет использоваться данный аргумент
-	struct _StringMapEntry *real; // указывает на переменную, которая была передана в качестве аргумента
-
+	struct _StringMapEntry *realVar; // указывает на переменную, которая была передана в качестве аргумента
+	char *realNumber;
 };
 
 typedef struct _ArgumentMap
@@ -219,7 +219,8 @@ struct ArgumentMapEntry *CreateAndInitArgumentMapEntry(const char *name)
         free (entry);
         return NULL;
         }
-	entry->real = NULL;
+	entry->realVar = NULL;
+	entry->realNumber = NULL;
     strcpy(entry->name, name);
 	entry->next = NULL;
     return entry;
@@ -402,6 +403,21 @@ const char * GetStringByKey (StringMap *map, const char *key) {
 
     return NULL;
 }
+
+StringMapEntry *GetVarByKey (StringMap *map, const char *key) {
+
+	StringMapEntry *entry = map->first;
+
+    while (entry) {
+        if (!strcmp (entry->key, key)) {
+            return entry;
+            }
+        entry = entry->next;
+        }
+
+    return NULL;
+}
+
 
 FunctionMapEntry * GetFunctionByKey (FunctionMap *map, const char *key) {
 
@@ -706,40 +722,73 @@ int GetCountOfExecFuncParams(const char *argline)
 	return counter;
 }
 
+const char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
+{
+
+}
+
 void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, const char *params)
 {
 	regex_t re;
 	regmatch_t match[MAX_MATCH];
 	int tlen;
 	char *argument, *str;
+	ArgumentMapEntry *targ;
+	CommandMapEntry *tcom;
 	FunctionMapEntry *tfun;
     
-	
 	memset (match, 0, sizeof(match));
 
 	str = (char *) malloc(strlen(params) + 1);
 	strcpy(str, params);
 	str[strlen(params)] = 0;
 	tfun = GetFunctionByKey(fCont, funcname);
+	targ = tfun->args->first;
+	// если в функцию передали верное количество параметров
+	if(GetCountOfExecFuncParams(params) == GetCountOfFunctionArguments(tfun))
+	{
+		if (!regcomp (&re, "\\s*([a-zA-Z]+[a-zA-Z0-9]*)\\s*", 0)) {
+			while(1){
+				if (!regexec (&re, str, MAX_MATCH, match, 0)) {
+					argument = (char*) malloc (match[0].rm_eo - match[0].rm_so + 1);
+					memcpy(argument, str + match[0].rm_so, match[0].rm_eo - match[0].rm_so);
+					argument[match[0].rm_eo - match[0].rm_so] = 0;
+					
+					if(!isdigit(argument[0]))
+					{
+						targ->realVar = GetVarByKey(&glVars, argument);
+					}else
+					{
+						targ->realNumber = (char *) malloc (strlen(argument) + 1);
+						strcpy(targ->realNumber, argument);
+						targ->realNumber[strlen(argument)] = 0;
+					}
 
-	if (!regcomp (&re, "\\s*([a-zA-Z]+[a-zA-Z0-9]*)\\s*", 0)) {
-        while(1){
-			if (!regexec (&re, str, MAX_MATCH, match, 0)) {
-				argument = (char*) malloc (match[0].rm_eo - match[0].rm_so + 1);
-				memcpy(argument, str + match[0].rm_so, match[0].rm_eo - match[0].rm_so);
-				argument[match[0].rm_eo - match[0].rm_so] = 0;
-				InsertArgumentMap(Obj, argument);
-				free(argument);
+					free(argument);
 
-				tlen = strlen(str);
-				memcpy(str, str + match[0].rm_eo, tlen - match[0].rm_eo);
-				str[tlen - match[0].rm_eo] = 0;
-			}else	
-				break;
+					tlen = strlen(str);
+					memcpy(str, str + match[0].rm_eo, tlen - match[0].rm_eo);
+					str[tlen - match[0].rm_eo] = 0;
+
+					targ = targ->next;
+				}else	
+					break;
+			}
+			regfree (&re);
+			free(str);
+
+			///////////// выполнение команд
+			tcom = tfun->commands->first;
+			while(tcom != NULL)
+			{
+				// модифицируем строку!
+
+				tcom = tcom->next;
+			}
 		}
-        regfree (&re);
-		free(str);
-    }
+		
+	}
+
 	return;
 
 }

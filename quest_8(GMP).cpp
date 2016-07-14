@@ -403,6 +403,21 @@ const char * GetStringByKey (StringMap *map, const char *key) {
     return NULL;
 }
 
+FunctionMapEntry * GetFunctionByKey (FunctionMap *map, const char *key) {
+
+	FunctionMapEntry *entry = map->first;
+
+    while (entry) {
+		if (!strcmp (entry->name, key)) {
+            return entry;
+            }
+        entry = entry->next;
+    }
+
+    return NULL;
+}
+
+
 // 1 - если количество '(' == количеству ')',
 // 0 - в противном случае
 int ComputeNumberOfBrackets(const char *str)
@@ -634,6 +649,106 @@ void ParseAndSetCurrentFunctionArguments(struct CurrentReadingFunctionFieldsStru
 	return;
 }
 
+// возращает количество аргументов функции
+int GetCountOfFunctionArguments(FunctionMapEntry *fentry)
+{
+	int counter;
+	ArgumentMapEntry *tt;
+	counter = 0;
+	if(fentry->args == NULL)
+	{
+		return 0;
+	}
+	tt = fentry->args->first;
+	while(tt->next!= NULL)
+	{
+		tt = tt->next;
+		counter++;
+	}
+    return counter;
+}
+
+// возвращает количество аргументов, передаваемых в функцию
+// при ее вызове
+int GetCountOfExecFuncParams(const char *argline)
+{
+	regex_t re;
+	regmatch_t match[MAX_MATCH];
+	int tlen, counter;
+	char *argument, *argstr;
+    memset (match, 0, sizeof(match));
+	
+	counter = 0;
+	
+	argstr = (char *) malloc(strlen(argline) + 1);
+	strcpy(argstr, argline);
+	argstr[strlen(argline)] = 0;
+
+	if (!regcomp (&re, "\\s*([a-zA-Z0-9]+)\\s*", 0)) {
+        while(1){
+			if (!regexec (&re, argstr, MAX_MATCH, match, 0)) {
+					/*
+					argument = (char*) malloc (match[0].rm_eo - match[0].rm_so + 1);
+					memcpy(argument, argstr + match[0].rm_so, match[0].rm_eo - match[0].rm_so);
+					argument[match[0].rm_eo - match[0].rm_so] = 0;
+					free(argument);
+					*/
+					counter++;
+					tlen = strlen(argstr);
+					memcpy(argstr, argstr + match[0].rm_eo, tlen - match[0].rm_eo);
+					argstr[tlen - match[0].rm_eo] = 0;
+			}else	
+				break;
+		}
+        regfree (&re);
+		free(argstr);
+    }
+	return counter;
+}
+
+void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, const char *params)
+{
+	regex_t re;
+	regmatch_t match[MAX_MATCH];
+	int tlen;
+	char *argument, *str;
+	FunctionMapEntry *tfun;
+    
+	
+	memset (match, 0, sizeof(match));
+
+	str = (char *) malloc(strlen(params) + 1);
+	strcpy(str, params);
+	str[strlen(params)] = 0;
+	tfun = GetFunctionByKey(fCont, funcname);
+
+	if (!regcomp (&re, "\\s*([a-zA-Z]+[a-zA-Z0-9]*)\\s*", 0)) {
+        while(1){
+			if (!regexec (&re, str, MAX_MATCH, match, 0)) {
+				argument = (char*) malloc (match[0].rm_eo - match[0].rm_so + 1);
+				memcpy(argument, str + match[0].rm_so, match[0].rm_eo - match[0].rm_so);
+				argument[match[0].rm_eo - match[0].rm_so] = 0;
+				InsertArgumentMap(Obj, argument);
+				free(argument);
+
+				tlen = strlen(str);
+				memcpy(str, str + match[0].rm_eo, tlen - match[0].rm_eo);
+				str[tlen - match[0].rm_eo] = 0;
+			}else	
+				break;
+		}
+        regfree (&re);
+		free(str);
+    }
+	return;
+
+}
+
+void ExecuteFunctionWithoutParams(const char *funcname)
+{
+
+}
+
 void ParseLine (const char *line) {
 
 regex_t re;
@@ -654,8 +769,10 @@ char operation;
 			CRFFObj.FunctionReadingMode = 0;
 			InsertFunctionMap(&glFuncs, (&CRFFObj)->name, (&CRFFObj)->coms, (&CRFFObj)->args);
 			InitCRFFObj(&CRFFObj);
+	        regfree (&re);
+			return;
 		}
-        regfree (&re);
+		regfree(&re);
     }
 	// если в режиме записи команд функции, записываем строку и выходим
 	if(CRFFObj.FunctionReadingMode == 1)
@@ -734,16 +851,19 @@ FILE *fd;
 
 int main (int argc, char *argv[], char *envp[]) {
 	InitCRFFObj(&CRFFObj);
-	
-    InitStringMap (&glVars);
+    InitStringMap(&glVars);
 	InitFuncsMap(&glFuncs);
 
 	ParseLine("function getvar(a,b,c)");
 	ParseLine("a + b + c;");
 	ParseLine("end getvar");
 
+	ParseLine("function getvar2(a,b,c)");
+	ParseLine("a + b + c;");
+	ParseLine("end getvar2");
+
 //	ParseLine ("var1 = (250 - 150) * (10-20);");
- //   ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");
+//   ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");
 /*
     if (argc < 2) {
         printf ("usage: %s filename\n", argv[0]);

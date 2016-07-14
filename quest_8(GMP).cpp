@@ -224,20 +224,25 @@ struct ArgumentMapEntry *CreateAndInitArgumentMapEntry(const char *name)
 }
 
 
-void InsertArgumentMap(ArgumentMap *amap, const char *name)
+void InsertArgumentMap(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name)
 {
 	struct  ArgumentMapEntry *newEntry;
     struct	ArgumentMapEntry *tt;
     newEntry = CreateAndInitArgumentMapEntry (name);
     if (!newEntry) {
         return;
-        }
-	if(amap->first == NULL)
+    }
+	if(Obj->args == NULL)
 	{
-		amap->first = newEntry;
+		Obj->args = (ArgumentMap *) malloc(sizeof(ArgumentMap));
+		Obj->args->first = NULL;
+	}
+	if(Obj->args->first == NULL)
+	{
+		Obj->args->first = newEntry;
 		return;
 	}
-	tt = amap->first;
+	tt = Obj->args->first;
 	while(tt->next!= NULL)
 	{
 		tt = tt->next;
@@ -248,7 +253,7 @@ void InsertArgumentMap(ArgumentMap *amap, const char *name)
 }
 
 
-void InsertCommandMap(CommandMap *cmap, const char *name)
+void InsertCommandMap(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name)
 {
 	struct CommandMapEntry *newEntry;
 	struct CommandMapEntry *tt;
@@ -256,12 +261,16 @@ void InsertCommandMap(CommandMap *cmap, const char *name)
     if (!newEntry) {
         return;
         }
-	if(cmap->first == NULL)
+	if(Obj->coms == NULL)
 	{
-		cmap->first = newEntry;
+		Obj->coms = (CommandMap *) malloc(sizeof(CommandMap));
+	}
+	if(Obj->coms->first == NULL)
+	{
+		Obj->coms->first = newEntry;
 		return;
 	}
-	tt = cmap->first;
+	tt = Obj->coms->first;
 	while(tt->next!= NULL)
 	{
 		tt = tt->next;
@@ -270,7 +279,6 @@ void InsertCommandMap(CommandMap *cmap, const char *name)
     return;
 	
 }
-
 
 void InitStringMap (StringMap *smap) {
     smap->first = NULL;
@@ -330,6 +338,7 @@ void InitFuncsMap (FunctionMap *fmap) {
     fmap->first = NULL;
     return;
 }
+
 
 FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, CommandContainer *comap, ArgumentContainer *argmap) {
     
@@ -586,28 +595,38 @@ void SetCurrentFunctionName(struct CurrentReadingFunctionFieldsStruct *Obj, cons
 
 void AddCurrentFunctionCommandLine(struct CurrentReadingFunctionFieldsStruct *Obj, const char *funcline)
 {
-	InsertCommandMap(Obj->coms, funcline);
+	InsertCommandMap(Obj, funcline);
 }
 
 void ParseAndSetCurrentFunctionArguments(struct CurrentReadingFunctionFieldsStruct *Obj, const char *argline)
 {
 	regex_t re;
 	regmatch_t match[MAX_MATCH];
-	int i;
-	char *arg;
+	int tlen;
+	char *argument, *argstr;
     memset (match, 0, sizeof(match));
-	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
-        if (!regexec (&re, argline, MAX_MATCH, match, 0)) {
-			for(i=0;match[i].rm_eo!=-1;i++) 
-			{
-	            arg = (char*) malloc (match[i].rm_eo - match[i].rm_so + 1);
-				memcpy(arg, argline + match[i].rm_so, match[i].rm_eo - match[i].rm_so);
-				arg[match[i].rm_eo - match[i].rm_so] = 0;
-				InsertArgumentMap(Obj->args, arg);
-				free(arg);
-			}
+
+	argstr = (char *) malloc(strlen(argline) + 1);
+	strcpy(argstr, argline);
+	argstr[strlen(argline)] = 0;
+
+	if (!regcomp (&re, "\\s*([a-zA-Z]+[a-zA-Z0-9]*)\\s*", 0)) {
+        while(1){
+			if (!regexec (&re, argstr, MAX_MATCH, match, 0)) {
+					argument = (char*) malloc (match[0].rm_eo - match[0].rm_so + 1);
+					memcpy(argument, argstr + match[0].rm_so, match[0].rm_eo - match[0].rm_so);
+					argument[match[0].rm_eo - match[0].rm_so] = 0;
+					InsertArgumentMap(Obj, argument);
+					free(argument);
+
+					tlen = strlen(argstr);
+					memcpy(argstr, argstr + match[0].rm_eo, tlen - match[0].rm_eo);
+					argstr[tlen - match[0].rm_eo] = 0;
+			}else	
+				break;
 		}
         regfree (&re);
+		free(argstr);
     }
 	return;
 }
@@ -708,11 +727,16 @@ FILE *fd;
 
 int main (int argc, char *argv[], char *envp[]) {
 	InitCRFFObj(&CRFFObj);
+	
     InitStringMap (&glVars);
 	InitFuncsMap(&glFuncs);
 
-	ParseLine ("var1 = (250 - 150) * (10-20);");
-    ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");
+	ParseLine("function getvar(a,b,c)");
+	ParseLine("a + b + c;");
+	ParseLine("end getvar");
+
+//	ParseLine ("var1 = (250 - 150) * (10-20);");
+ //   ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");
 /*
     if (argc < 2) {
         printf ("usage: %s filename\n", argv[0]);

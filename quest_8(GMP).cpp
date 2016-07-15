@@ -778,27 +778,43 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 		}
 		tname[strlen(targ->name)*2] = 0;
 		*/
-		templ = (char*) malloc (strlen(targ->name) + strlen("[\\s\\/\\*\\-\\+\\;]?()[\\s\\/\\*\\-\\+\\;]?") + 1);
+		templ = (char*) malloc (strlen(targ->name) + strlen("()") + 1);
 		templ[0] = 0;
-		strcat(templ, "[\\s\\/\\*\\-\\+\\;^a-zA-Z0-9]?(");
+		strcat(templ, "(");
 		strcat(templ, targ->name);
-		strcat(templ, ")[\\s\\/\\*\\-\\+\\;^a-zA-Z0-9]?");
+		strcat(templ, ")");
 
 		if (!regcomp (&re, templ, 0)) 
 		{
+
+
+
 			while(!regexec(&re, modstr, MAX_MATCH, match, 0))
 			{
+				// защита от того, чтобы встретить название переменной в другом слове!
+				if(match[0].rm_so > 0)
+				{
+					if(isalpha(modstr[match[0].rm_so-1]) || isalpha(modstr[match[0].rm_eo]))
+					{
+						continue;
+					}
+				}else{
+					if(isalpha(modstr[match[0].rm_eo]))
+					{
+						continue;
+					}
+				}
 				tlen = strlen(modstr);
 				if(targ->realNumber == NULL && targ->realVar != NULL){
 					
 					substr = (char *) malloc(tlen - match[0].rm_eo + 1);
-					memcpy(substr, modstr + match[0].rm_eo - 1, tlen - match[0].rm_eo + 1);
-					substr[tlen - match[0].rm_eo + 1] = 0;
+					memcpy(substr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
+					substr[tlen - match[0].rm_eo] = 0;
 
 					modstr = (char *) malloc(match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo) + 1);
 					memcpy(modstr + match[0].rm_so, targ->realVar->key, strlen(targ->realVar->key));
 					memcpy(modstr + match[0].rm_so + strlen(targ->realVar->key), substr, strlen(substr));
-					modstr[match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo) + 1] = 0;
+					modstr[match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo)] = 0;
 
 					///////////
 					///////////
@@ -807,8 +823,8 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 				{
 					
 					substr = (char *) malloc(tlen - match[0].rm_eo + 1);
-					memcpy(substr, modstr + match[0].rm_eo - 1, tlen - match[0].rm_eo + 1);
-					substr[tlen - match[0].rm_eo + 1] = 0;
+					memcpy(substr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
+					substr[tlen - match[0].rm_eo] = 0;
 
 					modstr = (char *) malloc(match[0].rm_so + strlen(targ->realNumber) + (tlen - match[0].rm_eo) + 1);
 					memcpy(modstr + match[0].rm_so, targ->realNumber, strlen(targ->realNumber));

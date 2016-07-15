@@ -83,6 +83,7 @@ clock_t end;
 //----------------------------------------
 //----------------------------------------
 
+
 //////////////////////////////////// STRING STRUCTURES
 
 typedef struct _StringMapEntry {
@@ -176,6 +177,33 @@ struct CurrentReadingFunctionFieldsStruct
 VariableContainer glVars;
 FunctionContainer glFuncs;
 //---------------------------------------- FUNCTIONS
+void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, const char *params);
+void SetCurrentFunctionName(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name);
+void InitCRFFObj(struct CurrentReadingFunctionFieldsStruct *Obj);
+struct CommandMapEntry *CreateAndInitCommandMapEntry(const char *commandline);
+struct ArgumentMapEntry *CreateAndInitArgumentMapEntry(const char *name);
+void InsertArgumentMap(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name);
+void InsertCommandMap(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name);
+void InitStringMap (StringMap *smap);
+StringMapEntry *CreateAndInitStringMapEntry (const char *key, const char *value);
+void InsertStringMap (StringMap *map, const char *key, const char *value);
+const char * GetStringByKey (StringMap *map, const char *key);
+void InitFuncsMap (FunctionMap *fmap);
+FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, CommandContainer *comap, ArgumentContainer *argmap);
+void InsertFunctionMap (FunctionMap *map, const char *name, CommandContainer *comap, ArgumentContainer *argmap);
+const char * GetStringByKey (StringMap *map, const char *key);
+StringMapEntry *GetVarByKey (StringMap *map, const char *key);
+FunctionMapEntry * GetFunctionByKey (FunctionMap *map, const char *key);
+int ComputeNumberOfBrackets(const char *str);
+const char *ComputeExpressionAndGetResult_s(const char *Num1, char operation,const char *Num2);
+const char *ParseLineNotEqualAndGetResult(const char *line);
+int GetCountOfFunctionArguments(FunctionMapEntry *fentry);
+int GetCountOfExecFuncParams(const char *argline);
+char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str);
+void ParseLine (const char *line);
+void ExecuteFunctionWithoutParams(FunctionContainer *fCont, const char *funcname);
+void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, const char *params);
+void ParseFile (const char *fileName);
 
 void InitCRFFObj(struct CurrentReadingFunctionFieldsStruct *Obj)
 {
@@ -676,7 +704,7 @@ int GetCountOfFunctionArguments(FunctionMapEntry *fentry)
 		return 0;
 	}
 	tt = fentry->args->first;
-	while(tt->next!= NULL)
+	while(tt!= NULL)
 	{
 		tt = tt->next;
 		counter++;
@@ -726,8 +754,8 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 {
 	regex_t re;
 	regmatch_t match[MAX_MATCH];
-	int tlen;
-	char *templ, *modstr, *substr;
+	int tlen, i;
+	char *templ, *modstr, *substr, *tname;
 	struct ArgumentMapEntry *targ;
 
 	memset (match, 0, sizeof(match));
@@ -741,11 +769,20 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 	while(targ != NULL)
 	{
 		////////////// обработка строки!
-		templ = (char*) malloc (strlen(targ->name) + strlen("\\s*()\\s*") + 1);
+		/*
+		tname = (char *) malloc(strlen(targ->name)*2+1);
+		for(i=0; i<strlen(targ->name); i++)
+		{
+			tname[i*2] = '\\';
+			tname[i*2+1] = targ->name[i];
+		}
+		tname[strlen(targ->name)*2] = 0;
+		*/
+		templ = (char*) malloc (strlen(targ->name) + strlen("[\\s\\/\\*\\-\\+\\;]?()[\\s\\/\\*\\-\\+\\;]?") + 1);
 		templ[0] = 0;
-		strcat(templ, "\\s*(");
+		strcat(templ, "[\\s\\/\\*\\-\\+\\;^a-zA-Z0-9]?(");
 		strcat(templ, targ->name);
-		strcat(templ, ")\\s*");
+		strcat(templ, ")[\\s\\/\\*\\-\\+\\;^a-zA-Z0-9]?");
 
 		if (!regcomp (&re, templ, 0)) 
 		{
@@ -755,13 +792,13 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 				if(targ->realNumber == NULL && targ->realVar != NULL){
 					
 					substr = (char *) malloc(tlen - match[0].rm_eo + 1);
-					memcpy(substr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
-					substr[tlen - match[0].rm_eo] = 0;
+					memcpy(substr, modstr + match[0].rm_eo - 1, tlen - match[0].rm_eo + 1);
+					substr[tlen - match[0].rm_eo + 1] = 0;
 
 					modstr = (char *) malloc(match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo) + 1);
 					memcpy(modstr + match[0].rm_so, targ->realVar->key, strlen(targ->realVar->key));
-					memcpy(modstr + match[0].rm_so, substr, strlen(substr));
-					modstr[match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo)] = 0;
+					memcpy(modstr + match[0].rm_so + strlen(targ->realVar->key), substr, strlen(substr));
+					modstr[match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo) + 1] = 0;
 
 					///////////
 					///////////
@@ -770,12 +807,12 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 				{
 					
 					substr = (char *) malloc(tlen - match[0].rm_eo + 1);
-					memcpy(substr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
-					substr[tlen - match[0].rm_eo] = 0;
+					memcpy(substr, modstr + match[0].rm_eo - 1, tlen - match[0].rm_eo + 1);
+					substr[tlen - match[0].rm_eo + 1] = 0;
 
 					modstr = (char *) malloc(match[0].rm_so + strlen(targ->realNumber) + (tlen - match[0].rm_eo) + 1);
 					memcpy(modstr + match[0].rm_so, targ->realNumber, strlen(targ->realNumber));
-					memcpy(modstr + match[0].rm_so, substr, strlen(substr));
+					memcpy(modstr + match[0].rm_so + strlen(targ->realNumber), substr, strlen(substr));
 					modstr[match[0].rm_so + strlen(targ->realNumber) + (tlen - match[0].rm_eo)] = 0;
 				}
 				else
@@ -786,16 +823,11 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 
 		targ = targ->next;
 		free(templ);
+//		free(tname);
 	}
 	return modstr;
 }
 
-
-void ExecuteFunctionWithoutParams(const char *funcname)
-{
-
-	return;
-}
 
 void ParseLine (const char *line) {
 
@@ -810,6 +842,39 @@ const char *op2Number;
 char operation;
 
     memset (match, 0, sizeof(match));
+
+	// распознаем вызов функции
+	if (!regcomp (&re, "^\\s*([a-zA-Z]+[a-zA-Z0-9]*)\\s*\\(([a-zA-Z0-9\\s\\,]*)\\)\\s*;*\\s*$", 0)) {
+        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
+			if(line[match[2].rm_so] == '(' || line[match[2].rm_so] == ')')
+			{
+				op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
+
+				memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+				op1[match[1].rm_eo - match[1].rm_so] = 0;
+
+				ExecuteFunctionWithoutParams(&glFuncs, op1);
+			}
+			else
+			{
+				op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
+				op2 = (char*) malloc (match[2].rm_eo - match[2].rm_so + 1);
+
+				memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+				op1[match[1].rm_eo - match[1].rm_so] = 0;
+
+				memcpy(op2, line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
+				op2[match[2].rm_eo - match[2].rm_so] = 0;
+
+				ExecuteFunctionWithParams(&glFuncs, op1, op2);
+			}
+			
+			regfree (&re);
+			return;
+		}
+		regfree(&re);
+    }
+
 
 	// распознавание окончания функции
 	if (!regcomp (&re, "^\\s*end\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
@@ -878,6 +943,24 @@ char operation;
     }
 
     return;
+}
+
+void ExecuteFunctionWithoutParams(FunctionContainer *fCont, const char *funcname)
+{
+	struct CommandMapEntry *tcom;
+	FunctionMapEntry *tfun;
+
+			///////////// выполнение команд
+	tfun = GetFunctionByKey(fCont, funcname);
+	tcom = tfun->commands->first;
+	while(tcom != NULL)
+	{
+		// модифицируем строку!
+		ParseLine(tcom->CommandString);
+
+		tcom = tcom->next;
+	}
+	return;
 }
 
 void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, const char *params)
@@ -949,7 +1032,6 @@ void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, c
 }
 
 
-
 void ParseFile (const char *fileName) {
 char line[1024];
 FILE *fd;
@@ -970,13 +1052,20 @@ int main (int argc, char *argv[], char *envp[]) {
     InitStringMap(&glVars);
 	InitFuncsMap(&glFuncs);
 
+
 	ParseLine("function getvar(a,b,c)");
 	ParseLine("a + b + c;");
 	ParseLine("end getvar");
 
+	ParseLine("var1 = 100;");
+	ParseLine("var2 = 200;");
+	ParseLine("var3 = 500;");
+
 	ParseLine("function getvar2(a,b,c)");
 	ParseLine("a + b + c;");
 	ParseLine("end getvar2");
+
+	ParseLine("getvar2(var1, var2,var3);");
 
 //	ParseLine ("var1 = (250 - 150) * (10-20);");
 //   ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");

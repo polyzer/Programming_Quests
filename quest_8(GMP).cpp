@@ -750,6 +750,63 @@ int GetCountOfExecFuncParams(const char *argline)
 	return counter;
 }
 
+int *GetCountOfEntries(const char *str, const char *templ)
+{
+	regex_t re;
+	regmatch_t match[MAX_MATCH];
+	regmatch_t ret_match[MAX_MATCH];
+	int tlen, i;
+	char *templ, *modstr;
+	struct ArgumentMapEntry *targ;
+
+	memset (match, 0, sizeof(match));
+	
+	modstr = (char *) malloc(strlen(str) + 1);
+	strcpy(modstr, str);
+	modstr[strlen(str)] = 0;
+
+	i = 0;
+
+	regmatch_t match[MAX_MATCH];
+
+		if (!regcomp (&re, templ, 0)) 
+		{
+			while(!regexec(&re, modstr, MAX_MATCH, match, 0))
+			{
+				// защита от того, чтобы встретить название переменной в другом слове!
+				if(match[0].rm_so > 0)
+				{
+					if(isalpha(modstr[match[0].rm_so-1]) || isalpha(modstr[match[0].rm_eo]))
+					{
+						continue;
+					}
+				}else{
+					if(isalpha(modstr[match[0].rm_eo]))
+					{
+						continue;
+					}
+				}
+				tlen = strlen(modstr);
+					
+				memcpy(modstr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
+				modstr[tlen - match[0].rm_eo] = 0;
+				
+				ret_match[i] = ret_match[0];
+				// записываем -1 в элементы, в которых не будем
+				if(i < MAX_MATCH-1)
+				{
+					ret_match[i+1] = ret_match[2];
+				}
+				// записываем абсолютные значения смещений совпадений в строке!
+				if(i > 0){
+					ret_match[i].rm_so += ret_match[i-1].rm_eo;
+					ret_match[i].rm_eo += ret_match[i-1].rm_eo;
+				}
+			}
+		}
+
+}
+
 char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 {
 	regex_t re;
@@ -757,6 +814,7 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 	int tlen, i;
 	char *templ, *modstr, *substr, *tname;
 	struct ArgumentMapEntry *targ;
+	StringMap ModStr;
 
 	memset (match, 0, sizeof(match));
 	
@@ -786,9 +844,6 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 
 		if (!regcomp (&re, templ, 0)) 
 		{
-
-
-
 			while(!regexec(&re, modstr, MAX_MATCH, match, 0))
 			{
 				// защита от того, чтобы встретить название переменной в другом слове!
@@ -811,13 +866,13 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 					memcpy(substr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
 					substr[tlen - match[0].rm_eo] = 0;
 
+					
+
 					modstr = (char *) malloc(match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo) + 1);
 					memcpy(modstr + match[0].rm_so, targ->realVar->key, strlen(targ->realVar->key));
 					memcpy(modstr + match[0].rm_so + strlen(targ->realVar->key), substr, strlen(substr));
 					modstr[match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo)] = 0;
 
-					///////////
-					///////////
 				}
 				else if(targ->realNumber != NULL && targ->realVar == NULL)
 				{
@@ -833,6 +888,9 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 				}
 				else
 					printf("PROBLEM IN FUNCTION: InsertRealFuncParamsToString");				
+
+
+
 				free(substr);
 			}
 		}
@@ -1077,8 +1135,8 @@ int main (int argc, char *argv[], char *envp[]) {
 	ParseLine("var2 = 200;");
 	ParseLine("var3 = 500;");
 
-	ParseLine("function getvar2(a,b,c)");
-	ParseLine("a + b + c;");
+	ParseLine("function getvar2(aa,b,c)");
+	ParseLine("aa + aa + b + c;");
 	ParseLine("end getvar2");
 
 	ParseLine("getvar2(var1, var2,var3);");

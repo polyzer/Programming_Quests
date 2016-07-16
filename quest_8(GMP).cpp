@@ -204,6 +204,7 @@ void ParseLine (const char *line);
 void ExecuteFunctionWithoutParams(FunctionContainer *fCont, const char *funcname);
 void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, const char *params);
 void ParseFile (const char *fileName);
+regmatch_t *GetPositionOfEntries(const char *str, const char *templ);
 
 void InitCRFFObj(struct CurrentReadingFunctionFieldsStruct *Obj)
 {
@@ -750,11 +751,11 @@ int GetCountOfExecFuncParams(const char *argline)
 	return counter;
 }
 
-int *GetCountOfEntries(const char *str, const char *templ)
+regmatch_t *GetPositionOfEntries(const char *str, const char *templ)
 {
 	regex_t re;
 	regmatch_t match[MAX_MATCH];
-	regmatch_t ret_match[MAX_MATCH];
+	regmatch_t *ret_match;
 	int tlen, i;
 	char *templ, *modstr;
 	struct ArgumentMapEntry *targ;
@@ -765,12 +766,15 @@ int *GetCountOfEntries(const char *str, const char *templ)
 	strcpy(modstr, str);
 	modstr[strlen(str)] = 0;
 
+	ret_match = (regmatch_t *) malloc(sizeof(regmatch_t) * 10);
+
 	i = 0;
 
 	regmatch_t match[MAX_MATCH];
 
 		if (!regcomp (&re, templ, 0)) 
 		{
+			// пока находятся совпадения шаблона в строке!
 			while(!regexec(&re, modstr, MAX_MATCH, match, 0))
 			{
 				// защита от того, чтобы встретить название переменной в другом слове!
@@ -786,11 +790,13 @@ int *GetCountOfEntries(const char *str, const char *templ)
 						continue;
 					}
 				}
+				// каждый раз получаем длину строки, чтобы копировать нужное количество символов
 				tlen = strlen(modstr);
-					
+				// копируем то, что осталось после совпадения!	
 				memcpy(modstr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
 				modstr[tlen - match[0].rm_eo] = 0;
 				
+				// записываем совпадения в массив, чтобы потом вернуть
 				ret_match[i] = ret_match[0];
 				// записываем -1 в элементы, в которых не будем
 				if(i < MAX_MATCH-1)
@@ -804,13 +810,14 @@ int *GetCountOfEntries(const char *str, const char *templ)
 				}
 			}
 		}
-
+		regfree(&re);
+		return ret_match;
 }
 
 char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 {
 	regex_t re;
-	regmatch_t match[MAX_MATCH];
+	regmatch_t match[MAX_MATCH], *matches;
 	int tlen, i;
 	char *templ, *modstr, *substr, *tname;
 	struct ArgumentMapEntry *targ;
@@ -818,9 +825,6 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 
 	memset (match, 0, sizeof(match));
 	
-	modstr = (char *) malloc(strlen(str) + 1);
-	strcpy(modstr, str);
-	modstr[strlen(str)] = 0;
 
 	targ = func->args->first;
 	
@@ -842,6 +846,68 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 		strcat(templ, targ->name);
 		strcat(templ, ")");
 
+		matches = GetPositionOfEntries(str, templ);
+		// подсчитали количество вхождений
+		for(i=0;(matches[i].rm_eo != -1) && (i < MAX_MATCH); i++);
+		
+		if(targ->realNumber == NULL && targ->realVar != NULL)
+		{
+			// выделяем память под модифицированную строку!
+			modstr = (char *) malloc(strlen(str) - (i*strlen(targ->name)) + (i*strlen(targ->realVar->key)) + 1);
+			modstr[0] = 0;
+			for(i=0; matches[i].rm_eo != -1; i++)
+			{
+				if(i > 0){
+					substr = (char *) malloc(sizeof(matches[i].rm_eo - matches[i-1].rm_so) + 1); 
+					memcpy(substr, (char *) str[matches[i].rm_so], matches[i].rm_eo - matches[i-1].rm_so);
+					substr[matches[i].rm_eo - matches[i-1].rm_so] = 0;
+				}else
+				{
+					substr = (char *) malloc(sizeof(matches[i].rm_so) + 1); 
+					memcpy(substr, (char *) str, matches[i].rm_so);
+					substr[matches[i].rm_so] = 0; 
+				}
+				strcpy(modstr, substr);
+				strcpy(modstr, targ->realVar->key);
+				if(i < MAX_MATCH && matches[i].rm_eo == -1)
+				{
+					substr = (char *) malloc(strlen(str) - matches[i].rm_eo + 1); 
+					memcpy(substr, (char *) str[matches[i].rm_eo], strlen(str) - matches[i].rm_eo);
+					substr[strlen(str) - (i*strlen(targ->name)) + (i*strlen(targ->realVar->key))] = 0;
+					strcpy(modstr, substr);
+				}
+			}
+		}
+		else if(targ->realNumber != NULL && targ->realVar == NULL)
+		{
+			// выделяем память под модифицированную строку!
+			modstr = (char *) malloc(strlen(str) - (i*strlen(targ->name)) + (i*strlen(targ->realNumber)) + 1);
+			modstr[0] = 0;
+			for(i=0; matches[i].rm_eo != -1; i++)
+			{
+				if(i > 0){
+					substr = (char *) malloc(sizeof(matches[i].rm_eo - matches[i-1].rm_so) + 1); 
+					memcpy(substr, (char *) str[matches[i].rm_so], matches[i].rm_eo - matches[i-1].rm_so);
+					substr[matches[i].rm_eo - matches[i-1].rm_so] = 0;
+				}else
+				{
+					substr = (char *) malloc(sizeof(matches[i].rm_so) + 1); 
+					memcpy(substr, (char *) str, matches[i].rm_so);
+					substr[matches[i].rm_so] = 0; 
+				}
+				strcpy(modstr, substr);
+				strcpy(modstr, targ->realNumber);
+				if(i < MAX_MATCH && matches[i].rm_eo == -1)
+				{
+					substr = (char *) malloc(strlen(str) - matches[i].rm_eo + 1); 
+					memcpy(substr, (char *) str[matches[i].rm_eo], strlen(str) - matches[i].rm_eo);
+					substr[strlen(str) - (i*strlen(targ->name)) + (i*strlen(targ->realVar->key))] = 0;
+					strcpy(modstr, substr);
+				}
+			}
+		}
+
+		/*
 		if (!regcomp (&re, templ, 0)) 
 		{
 			while(!regexec(&re, modstr, MAX_MATCH, match, 0))
@@ -893,11 +959,10 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 
 				free(substr);
 			}
-		}
+		}  */
 
 		targ = targ->next;
 		free(templ);
-//		free(tname);
 	}
 	return modstr;
 }

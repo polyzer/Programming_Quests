@@ -841,12 +841,12 @@ char *Insert1SubstrToStr(const char *str, const struct ArgumentMapEntry *targ)
 			for(i=0; matches[i].rm_eo != -1; i++)
 			{
 				if(i > 0){
-					substr = (char *) malloc(sizeof(matches[i].rm_so - matches[i-1].rm_eo) + 1); 
+					substr = (char *) malloc(matches[i].rm_so - matches[i-1].rm_eo + 1); 
 					memcpy(substr, (char *) str + matches[i-1].rm_eo, matches[i].rm_so - matches[i-1].rm_eo);
 					substr[matches[i].rm_so - matches[i-1].rm_eo] = 0;
 				}else
 				{
-					substr = (char *) malloc(sizeof(matches[i].rm_so) + 1); 
+					substr = (char *) malloc(matches[i].rm_so + 1); 
 					memcpy(substr, (char *) str, matches[i].rm_so);
 					substr[matches[i].rm_so] = 0; 
 				}
@@ -871,12 +871,12 @@ char *Insert1SubstrToStr(const char *str, const struct ArgumentMapEntry *targ)
 			for(i=0; matches[i].rm_eo != -1; i++)
 			{
 				if(i > 0){
-					substr = (char *) malloc(sizeof(matches[i].rm_so - matches[i-1].rm_eo) + 1); 
+					substr = (char *) malloc(matches[i].rm_so - matches[i-1].rm_eo + 1); 
 					memcpy(substr, (char *) str + matches[i-1].rm_eo, matches[i].rm_so - matches[i-1].rm_eo);
 					substr[matches[i].rm_so - matches[i-1].rm_eo] = 0;
 				}else
 				{
-					substr = (char *) malloc(sizeof(matches[i].rm_so) + 1); 
+					substr = (char *) malloc(matches[i].rm_so + 1); 
 					memcpy(substr, (char *) str, matches[i].rm_so);
 					substr[matches[i].rm_so] = 0; 
 				}
@@ -1229,7 +1229,7 @@ int main (int argc, char *argv[], char *envp[]) {
 	ParseLine("var3 = 500;");
 
 	ParseLine("function getvar2(a,b,c)");
-	ParseLine("a + a + b + c;");
+	ParseLine("(a + a) + (b + c);");
 	ParseLine("end getvar2");
 
 	ParseLine("getvar2(var1, var2,9374956);");
@@ -1244,6 +1244,7 @@ int main (int argc, char *argv[], char *envp[]) {
 
     ParseFile (argv[1]);
 */
+
 	system("pause");
 
 	return 0;

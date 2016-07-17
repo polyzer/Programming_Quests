@@ -815,25 +815,13 @@ regmatch_t *GetPositionOfEntries(const char *str, const char *templ)
 		return ret_match;
 }
 
-char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
+char *Insert1SubstrToStr(const char *str, const struct ArgumentMapEntry *targ)
 {
 	regex_t re;
 	regmatch_t match[MAX_MATCH], *matches;
 	int tlen, i;
-	char *templ, *modstr, *substr, *copystr;
-	struct ArgumentMapEntry *targ;
-	StringMap ModStr;
+	char *templ, *modstr, *substr;
 
-	memset (match, 0, sizeof(match));
-	
-	copystr = (char*) malloc (strlen(str) + 1);
-	strcpy(copystr, str);
-	copystr[strlen(str)] = 0;
-
-	targ = func->args->first;
-	
-	while(targ != NULL)
-	{
 
 		templ = (char*) malloc (strlen(targ->name) + strlen("()") + 1);
 		templ[0] = 0;
@@ -906,63 +894,103 @@ char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
 			}
 		}
 
-		/*
-		if (!regcomp (&re, templ, 0)) 
+
+	free(templ);
+	free(matches);
+	return modstr;
+}
+
+char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
+{
+
+	struct ArgumentMapEntry *targ;
+	int tlen, i;
+	char *modstr, *modstr1;	
+	targ = func->args->first;
+	modstr = (char *) malloc(strlen(str) + 1);
+	strcpy(modstr, str);
+	while(targ != NULL)
+	{
+/*
+		templ = (char*) malloc (strlen(targ->name) + strlen("()") + 1);
+		templ[0] = 0;
+		strcat(templ, "(");
+		strcat(templ, targ->name);
+		strcat(templ, ")");
+
+		matches = GetPositionOfEntries(str, templ);
+		// подсчитали количество вхождений
+		for(i=0;(matches[i].rm_eo != -1) && (i < MAX_MATCH); i++);
+		
+		if(targ->realNumber == NULL && targ->realVar != NULL)
 		{
-			while(!regexec(&re, modstr, MAX_MATCH, match, 0))
+			// выделяем память под модифицированную строку!
+			modstr = (char *) malloc(strlen(str) - (i*strlen(targ->name)) + (i*strlen(targ->realVar->key)) + 1);
+			modstr[0] = 0;
+			for(i=0; matches[i].rm_eo != -1; i++)
 			{
-				// защита от того, чтобы встретить название переменной в другом слове!
-				if(match[0].rm_so > 0)
+				if(i > 0){
+					substr = (char *) malloc(sizeof(matches[i].rm_so - matches[i-1].rm_eo) + 1); 
+					memcpy(substr, (char *) str + matches[i-1].rm_eo, matches[i].rm_so - matches[i-1].rm_eo);
+					substr[matches[i].rm_so - matches[i-1].rm_eo] = 0;
+				}else
 				{
-					if(isalpha(modstr[match[0].rm_so-1]) || isalpha(modstr[match[0].rm_eo]))
-					{
-						continue;
-					}
-				}else{
-					if(isalpha(modstr[match[0].rm_eo]))
-					{
-						continue;
-					}
+					substr = (char *) malloc(sizeof(matches[i].rm_so) + 1); 
+					memcpy(substr, (char *) str, matches[i].rm_so);
+					substr[matches[i].rm_so] = 0; 
 				}
-				tlen = strlen(modstr);
-				if(targ->realNumber == NULL && targ->realVar != NULL){
-					
-					substr = (char *) malloc(tlen - match[0].rm_eo + 1);
-					memcpy(substr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
-					substr[tlen - match[0].rm_eo] = 0;
-
-					
-
-					modstr = (char *) malloc(match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo) + 1);
-					memcpy(modstr + match[0].rm_so, targ->realVar->key, strlen(targ->realVar->key));
-					memcpy(modstr + match[0].rm_so + strlen(targ->realVar->key), substr, strlen(substr));
-					modstr[match[0].rm_so + strlen(targ->realVar->key) + (tlen - match[0].rm_eo)] = 0;
-
-				}
-				else if(targ->realNumber != NULL && targ->realVar == NULL)
-				{
-					
-					substr = (char *) malloc(tlen - match[0].rm_eo + 1);
-					memcpy(substr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
-					substr[tlen - match[0].rm_eo] = 0;
-
-					modstr = (char *) malloc(match[0].rm_so + strlen(targ->realNumber) + (tlen - match[0].rm_eo) + 1);
-					memcpy(modstr + match[0].rm_so, targ->realNumber, strlen(targ->realNumber));
-					memcpy(modstr + match[0].rm_so + strlen(targ->realNumber), substr, strlen(substr));
-					modstr[match[0].rm_so + strlen(targ->realNumber) + (tlen - match[0].rm_eo)] = 0;
-				}
-				else
-					printf("PROBLEM IN FUNCTION: InsertRealFuncParamsToString");				
-
-
-
+				strcat(modstr, substr);
+				strcat(modstr, targ->realVar->key);
 				free(substr);
+				if(i < MAX_MATCH && matches[i+1].rm_eo == -1)
+				{
+					substr = (char *) malloc(strlen(str) - matches[i].rm_eo + 1); 
+					memcpy(substr, (char *) str + matches[i].rm_eo, strlen(str) - matches[i].rm_eo);
+					substr[strlen(str) - matches[i].rm_eo] = 0;
+					strcat(modstr, substr);
+					free(substr);
+				}
 			}
-		}  */
+		}
+		else if(targ->realNumber != NULL && targ->realVar == NULL)
+		{
+			// выделяем память под модифицированную строку!
+			modstr = (char *) malloc(strlen(str) - (i*strlen(targ->name)) + (i*strlen(targ->realNumber)) + 1);
+			modstr[0] = 0;
+			for(i=0; matches[i].rm_eo != -1; i++)
+			{
+				if(i > 0){
+					substr = (char *) malloc(sizeof(matches[i].rm_so - matches[i-1].rm_eo) + 1); 
+					memcpy(substr, (char *) str + matches[i-1].rm_eo, matches[i].rm_so - matches[i-1].rm_eo);
+					substr[matches[i].rm_so - matches[i-1].rm_eo] = 0;
+				}else
+				{
+					substr = (char *) malloc(sizeof(matches[i].rm_so) + 1); 
+					memcpy(substr, (char *) str, matches[i].rm_so);
+					substr[matches[i].rm_so] = 0; 
+				}
+				strcat(modstr, substr);
+				strcat(modstr, targ->realNumber);
+				free(substr);
+				if(i < MAX_MATCH && matches[i+1].rm_eo == -1)
+				{
+					substr = (char *) malloc(strlen(str) - matches[i].rm_eo + 1); 
+					memcpy(substr, (char *) str + matches[i].rm_eo, strlen(str) - matches[i].rm_eo);
+					substr[strlen(str) - matches[i].rm_eo] = 0;
+					strcat(modstr, substr);
+					free(substr);
+				}
+			}
+		}
 
-		targ = targ->next;
+
 		free(templ);
 		free(matches);
+*/
+		modstr1 = Insert1SubstrToStr(modstr, targ);
+		free(modstr);
+		modstr = modstr1;
+		targ = targ->next;
 	}
 	return modstr;
 }
@@ -1122,7 +1150,7 @@ void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, c
 	// если в функцию передали верное количество параметров
 	if(GetCountOfExecFuncParams(params) == GetCountOfFunctionArguments(tfun))
 	{
-		if (!regcomp (&re, "\\s*([a-zA-Z]+[a-zA-Z0-9]*)\\s*", 0)) {
+		if (!regcomp (&re, "([a-zA-Z0-9]+)", 0)) {
 			while(1){
 				if (!regexec (&re, str, MAX_MATCH, match, 0)) {
 					argument = (char*) malloc (match[0].rm_eo - match[0].rm_so + 1);
@@ -1204,7 +1232,7 @@ int main (int argc, char *argv[], char *envp[]) {
 	ParseLine("a + a + b + c;");
 	ParseLine("end getvar2");
 
-	ParseLine("getvar2(var1, var2,var3);");
+	ParseLine("getvar2(var1, var2,9374956);");
 
 //	ParseLine ("var1 = (250 - 150) * (10-20);");
 //   ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");

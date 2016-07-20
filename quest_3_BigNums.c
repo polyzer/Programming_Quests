@@ -8,7 +8,6 @@
 
 char *createBigNum(const char *Str);
 char *addBigNums(const char *BN1, const char *BN2);
-char *addBigNums1(const char *BN1, const char *BN2);
 void printBigNum(const char *BN);
 char *mulBigNumOnInt(const char *BN1, int mul);
 
@@ -20,17 +19,17 @@ int main (int argc, char **argv)
 
 	setlocale(LC_ALL, "Russian");
 	
-	BN1 = createBigNum("0x9999");
-//	BN2 = createBigNum("6846134239874235987623948623948609734986343490582986248724875698797854");
-//	BN3 = addBigNums(BN2, BN1);
-	printBigNum(BN1);
+	BN1 = createBigNum("11111110982348753245242384984325827467654234652134765234");
+	BN2 = createBigNum("999992938478723875342834986234");
+	BN3 = addBigNums(BN2, BN1);
+	printBigNum(BN3);
 
 	free(BN1);
 	BN1 = NULL;
-//	free(BN2);
-//	BN2 = NULL;
-//	free(BN3);
-//	BN3 = NULL;
+	free(BN2);
+	BN2 = NULL;
+	free(BN3);
+	BN3 = NULL;
 
 	system("pause");
 	return 0;
@@ -63,7 +62,7 @@ char *createBigNum(const char *Str)
 			}
 			tnum1 = mulBigNumOnInt(tnum, multiplier);
 			free(tnum);
-			NewNum = addBigNums1(NewNum, tnum1);
+			NewNum = addBigNums(NewNum, tnum1);
 			multiplier = multiplier * 16;
 			free(tnum1);
 		}
@@ -91,7 +90,7 @@ char *mulBigNumOnInt(const char *BN1, int mul)
 	for(i = 1; i < mul; i++)
 	{
 		tch = retNum;
-		retNum = addBigNums1(retNum, BN1);
+		retNum = addBigNums(retNum, BN1);
 		free(tch);
 	}
 	return retNum;
@@ -109,7 +108,7 @@ int findNotNull(char *BN)
 {
 }
 
-char *addBigNums1(const char *num1, const char *num2)
+char *addBigNums(const char *num1, const char *num2)
 {
 	char *Res;
 	const char *tp;
@@ -141,8 +140,9 @@ char *addBigNums1(const char *num1, const char *num2)
 		// если есть с чем складывать!
 		if(Digit > 0)
 		{
-			Num = tp[i] - '0'; // 98 == 2*'0'
-			Res[i] = Digit + (Num % SON) + '0';		
+			//Num = tp[i] - '0'; // 98 == 2*'0'
+			Num = Digit + (tp[i] - '0');
+			Res[i] = (Num % SON) + '0';		
 			Digit = Num / SON;
 		}else
 			Res[i] = tp[i];
@@ -156,138 +156,6 @@ char *addBigNums1(const char *num1, const char *num2)
 		Res[i] = 0;
 
 	return Res;
-}
-
-char *addBigNums(const char *BN1, const char *BN2)
-{
-	char *NewNum;
-	char Bigger;
-	int i = 0, j = 0, nextDigit = 0, tempNum = 0;
-
-	if(strlen(BN1) >= strlen(BN2))
-		Bigger = '1';
-	else
-		Bigger = '2';
-
-	if(Bigger == '1')
-	{
-		// выделяем память по формуле:
-		// общая длина + 1 под новый разряд + 1 под \0
-		NewNum = (char *) malloc(sizeof(char) * (strlen(BN1) + 2));
-	} else
-	{
-		// выделяем память по формуле:
-		// общая длина + 1 под новый разряд + 1 под \0
-		NewNum = (char *) malloc(sizeof(char) * (strlen(BN2) + 2));	
-	}
-
-	if (Bigger == '1')
-	{
-		for (i = 0; i < strlen(BN1); i++)
-		{
-			//если во втором числе разряды кончились
-			if (BN2[i] == '\0')
-			{
-				//здесь сделать проверку на получившийся новый разряд
-				for (j = i; j < strlen(BN1); j++)
-				{
-					if (j == i)
-					{
-						NewNum[j] = (((int)(BN1[j] - '0')) + tempNum / SON) + '0';
-					} else
-						NewNum[j] = BN1[j];
-				}
-				NewNum[strlen(BN1)] = '\0';
-				return NewNum;
-			} else
-				// если у нас оба числа еще не кончились!
-			{
-				// получаем число - сумму чисел из разряда!
-				// здесь прибавляем в текущий разряд нового числа 1 или 0
-				NewNum[i] = '0' + (tempNum / SON);
-				// здесь вычисляем сумму текущих разрядов для чисел, которые нужно суммировать
-				tempNum = (int)((int)(BN1[i] - '0') + (int)(BN2[i] - '0'));
-				// здесь в текущий разряд нового числа добавляем остаток отделения
-				// временного числа на систему счисления!
-				if (('0' + ((tempNum % SON) + (int)(NewNum[i] - '0'))) == ':')
-				{
-					NewNum[i] = '0';
-					tempNum += SON;
-				} else
-				{
-					NewNum[i] = '0' + ((tempNum % SON) + (int)(NewNum[i] - '0'));
-				}
-				if (i == (strlen(BN1) - 1))
-				{
-					if (tempNum / SON == 0)
-					{
-						NewNum[i+1] = '\0';
-						return NewNum;
-					}
-					else 
-					{
-						NewNum[i+1] = '0' + (tempNum / SON); 
-						NewNum[i+2] = '\0';
-						return NewNum;
-					}
-				}
-			}
-		}
-	}
-		else
-	{
-		for (i = 0; i < strlen(BN2); i++)
-		{
-			//если во втором числе разряды кончились
-			if (BN1[i] == '\0')
-			{
-				//здесь сделать проверку на получившийся новый разряд
-				for (j = i; j < strlen(BN2); j++)
-				{
-					if (j == i)
-					{
-						NewNum[j] = (((int)(BN2[j] - '0')) + tempNum / SON) + '0';
-					} else
-						NewNum[j] = BN2[j];
-				}
-				NewNum[strlen(BN2)] = '\0';
-				return NewNum;
-			} else
-				// если у нас оба числа еще не кончились!
-			{
-				// получаем число - сумму чисел из разряда!
-				// здесь прибавляем в текущий разряд нового числа 1 или 0
-				NewNum[i] = '0' + (tempNum / SON);
-				// здесь вычисляем сумму текущих разрядов для чисел, которые нужно суммировать
-				tempNum = (int)((int)(BN1[i] - '0') + (int)(BN2[i] - '0'));
-				// здесь в текущий разряд нового числа добавляем остаток от деления
-				// временного числа на систему счисления!
-				if (('0' + ((tempNum % SON) + (int)(NewNum[i] - '0'))) == ':')
-				{
-					NewNum[i] = '0';
-					tempNum += SON;
-				} else
-				{
-					NewNum[i] = '0' + ((tempNum % SON) + (int)(NewNum[i] - '0'));
-				}
-				if (i == (strlen(BN2) - 1))
-				{
-					if (tempNum / SON == 0)
-					{
-						NewNum[i+1] = '\0';
-						return NewNum;
-					}
-					else 
-					{
-						NewNum[i+1] = '0' + (tempNum / SON); 
-						NewNum[i+2] = '\0';
-						return NewNum;
-					}
-				}
-			}
-		}
-	}
-	return 0;
 }
 
 void printBigNum(const char *BN)

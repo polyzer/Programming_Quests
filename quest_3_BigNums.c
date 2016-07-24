@@ -4,7 +4,6 @@
 #include <locale.h>
 
 #define SON 10
-// большое число, будем хранить 10-ричные числа
 
 char *createBigNum(const char *Str);
 char *addBigNums(const char *BN1, const char *BN2);
@@ -19,8 +18,8 @@ int main (int argc, char **argv)
 
 	setlocale(LC_ALL, "Russian");
 	
-	BN1 = createBigNum("11111110982348753245242384984325827467654234652134765234");
-	BN2 = createBigNum("999992938478723875342834986234");
+	BN1 = createBigNum("0xFFFFFFFF");
+	BN2 = createBigNum("1");
 	BN3 = addBigNums(BN2, BN1);
 	printBigNum(BN3);
 
@@ -96,24 +95,12 @@ char *mulBigNumOnInt(const char *BN1, int mul)
 	return retNum;
 }
 
-void sub1(char *BN)
-{	
-}
-
-void set9(char *BN, int pos)
-{
-}
-
-int findNotNull(char *BN)
-{
-}
-
 char *addBigNums(const char *num1, const char *num2)
 {
 	char *Res;
 	const char *tp;
 	int i;
-	short Digit, Num; // 
+	short Digit, Num;
 	Digit = 0; 
 	if(strlen(num1) > strlen(num2)){
 		tp = num1;
@@ -127,7 +114,7 @@ char *addBigNums(const char *num1, const char *num2)
 	while(num1[i] != 0 && num2[i] != 0)
 	{
 		// складываем 2 числа
-		Num = num1[i] + num2[i] - 2*'0'; // 98 == 2*'0'
+		Num = num1[i] + num2[i] - 96; // 96 == 2*'0'
 		// записываем в текущий разряд
 		Res[i] = Digit + (Num % SON) + '0';
 		// перенос

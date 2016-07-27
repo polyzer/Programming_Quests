@@ -6,10 +6,10 @@
 #define INDEX_PRINT_FUNCTION  0
 #define INDEX_INIT_FUNCTION 1
 #define INDEX_ADD_FUNCTION  2
+#define INDEX_MUL_FUNCTION 3
 //#define INDEX_ADD_DIFF_FUNCTION 2
-#define INDEX_SUB_FUNCTION 3
 //#define INDEX_SUB_DIFF_FUNCTION 4
-#define INDEX_MUL_FUNCTION 4
+#define INDEX_SUB_FUNCTION 4
 //#define INDEX_MUL_DIFF_FUNCTION 6
 #define INDEX_DET_FUNCTION 5
 #define INDEX_REV_FUNCTION 6
@@ -84,7 +84,32 @@ typedef struct _OperationsTypeDMatrix {
 
 } OperationsTypeDMatrix;
 
-// полиморфная функция, умеющая складывать сущности различного типа
+/////////////////////// выделение памяти для двумерного массива
+int **malIArr(int cols, int rows)
+{
+	int **a, i;
+	a = (int **) malloc(sizeof(int *) * cols);
+
+	for(i = 0; i < cols; i++)
+	{
+		a[i] = (int *) malloc(sizeof(int) * rows);
+	}
+	return a;
+}
+double **malDArr(int cols, int rows)
+{
+	double **a;
+	int i;
+	a = (double **) malloc(sizeof(double *) * cols);
+
+	for(i = 0; i < cols; i++)
+	{
+		a[i] = (double *) malloc(sizeof(double) * rows);
+	}
+	return a;
+}
+
+////////////// полиморфная функция, умеющая складывать сущности различного типа
 OperationsType* Add (OperationsType *a, OperationsType *b) {
     
     return a->vtable[INDEX_ADD_FUNCTION] (a, b);
@@ -143,6 +168,10 @@ OperationsTypeDMatrix * AddDDMatrix (OperationsTypeDMatrix *a, OperationsTypeDMa
 	sum->value = (DMatrix *) malloc (sizeof(DMatrix));
 	sum->value->columns = a->value->columns;
 	sum->value->rows = a->value->rows;
+
+	sum->value->arr = malDArr(sum->value->columns, sum->value->rows);
+
+
 	for(i = 0; i < sum->value->columns; i++)
 	{
 		for(j = 0; j < sum->value->rows; j++)
@@ -170,6 +199,10 @@ OperationsTypeIMatrix * AddIIMatrix (OperationsTypeIMatrix *a, OperationsTypeIMa
 	sum->value = (IMatrix *) malloc (sizeof(IMatrix));
 	sum->value->columns = a->value->columns;
 	sum->value->rows = a->value->rows;
+
+	sum->value->arr = malIArr(sum->value->columns, sum->value->rows);
+
+
 	for(i = 0; i < sum->value->columns; i++)
 	{
 		for(j = 0; j < sum->value->rows; j++)
@@ -210,10 +243,14 @@ OperationsTypeDMatrix * MulDDMatrix (OperationsTypeDMatrix *a, OperationsTypeDMa
 	mul->value = (DMatrix *) malloc (sizeof(DMatrix));
 	mul->value->columns = a->value->columns;
 	mul->value->rows = b->value->rows;
+
+	mul->value->arr = malDArr(mul->value->columns, mul->value->rows);
+
 	for(i = 0; i < mul->value->columns; i++)
 	{
 		for(j = 0; j < mul->value->rows; j++)
 		{
+			mul->value->arr[i][j] = 0;			
 			for(k = 0; k < a->value->rows; k++)
 			{
 				mul->value->arr[i][j] += a->value->arr[i][k] * b->value->arr[k][j];
@@ -240,10 +277,15 @@ OperationsTypeIMatrix * MulIIMatrix (OperationsTypeIMatrix *a, OperationsTypeIMa
 	mul->value = (IMatrix *) malloc (sizeof(IMatrix));
 	mul->value->columns = a->value->columns;
 	mul->value->rows = b->value->rows;
+
+	mul->value->arr = malIArr(mul->value->columns, mul->value->rows);
+
+
 	for(i = 0; i < mul->value->columns; i++)
 	{
 		for(j = 0; j < mul->value->rows; j++)
 		{
+			mul->value->arr[i][j] = 0;			
 			for(k = 0; k < a->value->rows; k++)
 			{
 				mul->value->arr[i][j] += a->value->arr[i][k] * b->value->arr[k][j];
@@ -267,8 +309,9 @@ void PrintIMatrix (OperationsTypeIMatrix *a) {
 	{
 		for(j = 0; j < a->value->rows; j++)
 		{
-			printf("%d", a->value->arr[i][j]);
+			printf("%d ", a->value->arr[i][j]);
 		}
+		printf("\n");
 	}
 }
 
@@ -278,8 +321,9 @@ void PrintDMatrix (OperationsTypeDMatrix *a) {
 	{
 		for(j = 0; j < a->value->rows; j++)
 		{
-			printf("%d", a->value->arr[i][j]);
+			printf("%f ", a->value->arr[i][j]);
 		}
+		printf("\n");
 	}
 }
 
@@ -303,12 +347,7 @@ void *InitIMatrix(OperationsTypeIMatrix *a, const char *str1)
 	pch = strtok(NULL, " \n;");
 	a->value->rows = atoi(pch);
 
-	a->value->arr = (int **) malloc(sizeof(int *) * a->value->columns);
-
-	for(i = 0; i < a->value->columns; i++)
-	{
-		a->value->arr[i] = (int *) malloc(sizeof(int) * a->value->columns);
-	}
+	a->value->arr = malIArr(a->value->columns, a->value->rows);
 	for(i = 0; i < a->value->columns; i++)
 	{
 		for(j = 0; j < a->value->rows; j++)
@@ -334,12 +373,8 @@ void *InitDMatrix(OperationsTypeDMatrix *a, const char *str1)
 	pch = strtok(NULL, " \n;");
 	a->value->rows = atoi(pch);
 
-	a->value->arr = (double **) malloc(sizeof(double *) * a->value->columns);
+	a->value->arr = malDArr(a->value->columns, a->value->rows);
 
-	for(i = 0; i < a->value->columns; i++)
-	{
-		a->value->arr[i] = (double *) malloc(sizeof(double) * a->value->columns);
-	}
 	for(i = 0; i < a->value->columns; i++)
 	{
 		for(j = 0; j < a->value->rows; j++)
@@ -355,9 +390,11 @@ void *InitDMatrix(OperationsTypeDMatrix *a, const char *str1)
 int main () {
 
 // массив указателей на функции, работающих с OperationsTypeIMatrix
-OperationProto vtableIMatrix[] = {(OperationProto) PrintIMatrix, (OperationProto) InitIMatrix, (OperationProto)AddIIMatrix};
+OperationProto vtableIMatrix[] = {(OperationProto) PrintIMatrix, (OperationProto) InitIMatrix,
+(OperationProto)AddIIMatrix, (OperationProto)MulIIMatrix};
 // массив указателей на функции, работающих с OperationsTypeDMatrix
-OperationProto vtableDMatrix[] = {(OperationProto) PrintDMatrix, (OperationProto) InitDMatrix, (OperationProto)AddDDMatrix};
+OperationProto vtableDMatrix[] = {(OperationProto) PrintDMatrix, (OperationProto) InitDMatrix,
+(OperationProto)AddDDMatrix, (OperationProto)MulDDMatrix};
 
 OperationsTypeIMatrix IM1 = {vtableIMatrix, NULL};
 OperationsTypeIMatrix IM2 = {vtableIMatrix, NULL};
@@ -379,6 +416,13 @@ OperationsTypeDMatrix *DM3;
 
     PrintMatrix(IM3);
     PrintMatrix(DM3);
+
+	IM3 = MulMatrix(&IM1, &IM2);
+	DM3 = MulMatrix(&DM1, &DM2);
+
+    PrintMatrix(IM3);
+    PrintMatrix(DM3);
+
 
 	system("pause");
     return 0;

@@ -1,29 +1,33 @@
 #include <malloc.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #define INDEX_PRINT_FUNCTION  0
-#define INDEX_ADD_FUNCTION  1
+#define INDEX_INIT_FUNCTION 1
+#define INDEX_ADD_FUNCTION  2
 //#define INDEX_ADD_DIFF_FUNCTION 2
-#define INDEX_SUB_FUNCTION 2
+#define INDEX_SUB_FUNCTION 3
 //#define INDEX_SUB_DIFF_FUNCTION 4
-#define INDEX_MUL_FUNCTION 3
+#define INDEX_MUL_FUNCTION 4
 //#define INDEX_MUL_DIFF_FUNCTION 6
-#define INDEX_DET_FUNCTION 4
-#define INDEX_REV_FUNCTION 5
-#define INDEX_INIT_FUNCTION 6
+#define INDEX_DET_FUNCTION 5
+#define INDEX_REV_FUNCTION 6
 
 // обобщённая структура
 typedef struct _OperationsType OperationsType;
 
 // тип указателя на обобщённую функцию сложения
-typedef OperationsType * (*OperationProto1) (OperationsType *a, OperationsType *b);
-
+typedef OperationsType * (*OperationProto) (OperationsType *a, OperationsType *b);
 // тип указателя на обобщённую функцию вывода
-typedef void * (*OperationProto2) (OperationsType *a);
+typedef void * (*OperationProtoPrint) (OperationsType *a);
+// тип указателя на обобщённую функцию инициализации
+typedef void * (*OperationProtoInit) (OperationsType *a, const char *str);
+
 
 struct _OperationsType {
-    OperationProto1 *vtable; // указатель на массив функций
+  
+    OperationProto *vtable; // указатель на массив функций
 };
 
 typedef struct _IMatrix{
@@ -37,6 +41,7 @@ typedef struct _DMatrix{
 	int rows;
 	double **arr;
 } DMatrix;
+
 
 typedef struct _OperationsTypeInt {
     
@@ -79,28 +84,12 @@ typedef struct _OperationsTypeDMatrix {
 
 } OperationsTypeDMatrix;
 
-/// объявления и определения функций
-OperationsType* Add (OperationsType *a, OperationsType *b);
-OperationsTypeInt * AddInt (OperationsTypeInt *a, OperationsTypeInt *b);
-OperationsTypeDouble * AddDouble (OperationsTypeDouble *a, OperationsTypeDouble *b);
-
-OperationsTypeDMatrix * AddDDMatrix (OperationsTypeDMatrix *a, OperationsTypeDMatrix *b);
-OperationsTypeDMatrix * AddDIMatrix (OperationsTypeDMatrix *a, OperationsTypeIMatrix *b);
-OperationsTypeDMatrix * AddIDMatrix (OperationsTypeIMatrix *a, OperationsTypeDMatrix *b);
-OperationsTypeIMatrix * AddIIMatrix (OperationsTypeIMatrix *a, OperationsTypeIMatrix *b);
-
-
 // полиморфная функция, умеющая складывать сущности различного типа
-OperationsType* AddMatrix (OperationsType *a, OperationsType *b) {
-    // можно ведь работать с двумя виртуальными таблицами..
-	OperationsType* c;
-	c = a->vtable[INDEX_ADD_FUNCTION] (a, b);
-	if(c != NULL)
-		return c;
-	else{
-		return c = a->vtable[INDEX_ADD_DIFF_FUNCTION] (a, b);
-	}
+OperationsType* Add (OperationsType *a, OperationsType *b) {
+    
+    return a->vtable[INDEX_ADD_FUNCTION] (a, b);
 }
+
 
 OperationsTypeInt * AddInt (OperationsTypeInt *a, OperationsTypeInt *b) {
 
@@ -112,6 +101,7 @@ OperationsTypeInt *sum = (OperationsTypeInt*) malloc (sizeof(OperationsTypeInt))
     return sum;
 }
 
+
 OperationsTypeDouble * AddDouble (OperationsTypeDouble *a, OperationsTypeDouble *b) {
 
 OperationsTypeDouble *sum = (OperationsTypeDouble*) malloc (sizeof(OperationsTypeDouble));
@@ -121,62 +111,23 @@ OperationsTypeDouble *sum = (OperationsTypeDouble*) malloc (sizeof(OperationsTyp
 
     return sum;
 }
+
 /////////////// сложение матриц
+// полиморфная функция, умеющая складывать сущности различного типа
+OperationsType* AddMatrix (OperationsType *a, OperationsType *b) {
+    // можно ведь работать с двумя виртуальными таблицами..
+	OperationsType* c;
+	c = a->vtable[INDEX_ADD_FUNCTION] (a, b);
+	return c;
+/*	if(c != NULL)
+		return c;
+	else{
+		return c = a->vtable[INDEX_ADD_DIFF_FUNCTION] (a, b);
+	}
+*/
+}
+
 OperationsTypeDMatrix * AddDDMatrix (OperationsTypeDMatrix *a, OperationsTypeDMatrix *b) {
-	int i, j;
-	OperationsTypeDMatrix *sum;
-	i = 0; j = 0;
-	sum = (OperationsTypeDMatrix*) malloc (sizeof(OperationsTypeDMatrix));
-	// складывать можно только матрицы одинаковой размерности
-	if(a->value->columns != b->value->columns || a->value->rows != b->value->rows)
-		return NULL;
-	if(sizeof(a->value->arr[0][0]) != sizeof(b->value->arr[0][0]))
-	{
-		return NULL;
-	}		
-	sum->head = a->head;
-	sum->value = (DMatrix *) malloc (sizeof(DMatrix));
-	sum->value->columns = a->value->columns;
-	sum->value->rows = a->value->rows;
-	for(i = 0; i < sum->value->columns; i++)
-	{
-		for(j = 0; j < sum->value->rows; j++)
-		{
-			sum->value->arr[i][j] =  a->value->arr[i][j] + b->value->arr[i][j];
-		}
-	}
-
-    return sum;
-}
-
-OperationsTypeDMatrix * AddDIMatrix (OperationsTypeDMatrix *a, OperationsTypeIMatrix *b) {
-	int i, j;
-	OperationsTypeDMatrix *sum;
-	i = 0; j = 0;
-	sum = (OperationsTypeDMatrix*) malloc (sizeof(OperationsTypeDMatrix));
-	// складывать можно только матрицы одинаковой размерности
-	if(a->value->columns != b->value->columns || a->value->rows != b->value->rows)
-		return NULL;
-	if(sizeof(a->value->arr[0][0]) != sizeof(b->value->arr[0][0]))
-	{
-		return NULL;
-	}		
-	sum->head = a->head;
-	sum->value = (DMatrix *) malloc (sizeof(DMatrix));
-	sum->value->columns = a->value->columns;
-	sum->value->rows = a->value->rows;
-	for(i = 0; i < sum->value->columns; i++)
-	{
-		for(j = 0; j < sum->value->rows; j++)
-		{
-			sum->value->arr[i][j] =  a->value->arr[i][j] + b->value->arr[i][j];
-		}
-	}
-
-    return sum;
-}
-
-OperationsTypeDMatrix * AddIDMatrix (OperationsTypeIMatrix *a, OperationsTypeDMatrix *b) {
 	int i, j;
 	OperationsTypeDMatrix *sum;
 	i = 0; j = 0;
@@ -231,14 +182,24 @@ OperationsTypeIMatrix * AddIIMatrix (OperationsTypeIMatrix *a, OperationsTypeIMa
 }
 ///////////////////// Перемножение матриц
 
-
 void PrintInt (OperationsTypeInt *a) {
     
     printf ("%d\n", a->value);
 }
 
 void PrintDouble (OperationsTypeDouble *a) {
+    
     printf ("%f\n", a->value);
+}
+
+void Print (OperationsType *a) {
+    
+    ((OperationProtoPrint)a->vtable[INDEX_PRINT_FUNCTION]) (a);
+}
+// вывод матриц
+void PrintMatrix (OperationsType *a) {
+    
+    ((OperationProtoPrint)a->vtable[INDEX_PRINT_FUNCTION]) (a);
 }
 
 void PrintIMatrix (OperationsTypeIMatrix *a) {
@@ -263,37 +224,103 @@ void PrintDMatrix (OperationsTypeDMatrix *a) {
 	}
 }
 
+//////////////// Инициализация матриц
+void *InitMatrix (OperationsType* a, const char *str) 
+{    
+	return ((OperationProtoInit) a->vtable[INDEX_INIT_FUNCTION]) (a, str);
+}
 
-void Print (OperationsType *a) {
-    ((OperationProto2)a->vtable[INDEX_PRINT_FUNCTION]) (a);
+void *InitIMatrix(OperationsTypeIMatrix *a, const char *str1)
+{
+	char *pch, *str;
+	int i, j;
+	str = (char *) malloc(strlen(str1) + 1);
+	strcpy(str, str1);
+	str[strlen(str1)] = 0;
+	a->value = (IMatrix *) malloc (sizeof(IMatrix));
+	
+	pch = strtok(str, " \n;");
+	a->value->columns = atoi(pch);
+	pch = strtok(NULL, " \n;");
+	a->value->rows = atoi(pch);
+
+	a->value->arr = (int **) malloc(sizeof(int *) * a->value->columns);
+
+	for(i = 0; i < a->value->columns; i++)
+	{
+		a->value->arr[i] = (int *) malloc(sizeof(int) * a->value->columns);
+	}
+	for(i = 0; i < a->value->columns; i++)
+	{
+		for(j = 0; j < a->value->rows; j++)
+		{
+			pch = strtok(NULL, " \n;");
+			a->value->arr[i][j] = atoi(pch);
+		}
+	}
+	free(str);
+}
+
+void *InitDMatrix(OperationsTypeDMatrix *a, const char *str1)
+{
+	char *pch, *str;
+	int i, j;
+	str = (char *) malloc(strlen(str1) + 1);
+	strcpy(str, str1);
+	str[strlen(str1)] = 0;
+	a->value = (DMatrix *) malloc (sizeof(DMatrix));
+	
+	pch = strtok(str, " \n;");
+	a->value->columns = atoi(pch);
+	pch = strtok(NULL, " \n;");
+	a->value->rows = atoi(pch);
+
+	a->value->arr = (double **) malloc(sizeof(double *) * a->value->columns);
+
+	for(i = 0; i < a->value->columns; i++)
+	{
+		a->value->arr[i] = (double *) malloc(sizeof(double) * a->value->columns);
+	}
+	for(i = 0; i < a->value->columns; i++)
+	{
+		for(j = 0; j < a->value->rows; j++)
+		{
+			pch = strtok(NULL, " \n;");
+			a->value->arr[i][j] = atof(pch);
+		}
+	}
+	free(str);
 }
 
 
 int main () {
 
-// массив указателей на функции, работающих с OperationsTypeInt
-OperationProto1 vtableInt[] = {(OperationProto1) PrintInt, (OperationProto1)AddInt};
-// массив указателей на функции, работающих с OperationsTypeDouble
-OperationProto1 vtableDouble[] = {(OperationProto1) PrintDouble, (OperationProto1)AddDouble};
 // массив указателей на функции, работающих с OperationsTypeIMatrix
-OperationProto1 vtableIMatrix[] = {(OperationProto1) PrintIMatrix, (OperationProto1)AddIIMatrix, (OperationProto1)AddIDMatrix};
+OperationProto vtableIMatrix[] = {(OperationProto) PrintIMatrix, (OperationProto) InitIMatrix, (OperationProto)AddIIMatrix};
 // массив указателей на функции, работающих с OperationsTypeDMatrix
-OperationProto1 vtableDMatrix[] = {(OperationProto1) PrintDMatrix, (OperationProto1)AddDDMatrix,  (OperationProto1)AddDIMatrix};
+OperationProto vtableDMatrix[] = {(OperationProto) PrintDMatrix, (OperationProto) InitDMatrix, (OperationProto)AddDDMatrix};
 
+OperationsTypeIMatrix IM1 = {vtableIMatrix, NULL};
+OperationsTypeIMatrix IM2 = {vtableIMatrix, NULL};
+OperationsTypeIMatrix *IM3;
+OperationsTypeDMatrix DM1 = {vtableDMatrix, NULL};
+OperationsTypeDMatrix DM2 = {vtableDMatrix, NULL};
+OperationsTypeDMatrix *DM3;
 
-OperationsTypeInt intA = {vtableInt, 10};
-OperationsTypeInt intB = {vtableInt, 20};
-OperationsTypeInt *intSum;
-OperationsTypeDouble doubleA = {vtableDouble, 1.0};
-OperationsTypeDouble doubleB = {vtableDouble, 2.0};
-OperationsTypeDouble *doubleSum;
+	InitMatrix(&IM1, "2 2; 5 6 9 3");
+	InitMatrix(&IM2, "2 2; 5 6 9 3");
+	InitMatrix(&DM1, "2 2; 5.0 6.0 9.0 3.0");
+	InitMatrix(&DM2, "2 2; 5.0 6.0 9.0 3.0");
 
+	IM3 = AddMatrix(&IM1, &IM2);
+	DM3 = AddMatrix(&DM1, &DM2);
 
-    intSum = Add (&intA, &intB);
-    doubleSum = Add (&doubleA, &doubleB);
+//    intSum = Add (&intA, &intB);
+//    doubleSum = Add (&doubleA, &doubleB);
 
-    Print (intSum);
-    Print (doubleSum);
+    PrintMatrix(IM3);
+    PrintMatrix(DM3);
+
 	system("pause");
     return 0;
 }

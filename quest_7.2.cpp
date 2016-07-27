@@ -213,6 +213,82 @@ OperationsTypeIMatrix * AddIIMatrix (OperationsTypeIMatrix *a, OperationsTypeIMa
 
     return sum;
 }
+/////////////// ВЫЧИТАНИЕ матриц
+// полиморфная функция, умеющая вычитать сущности различного типа
+OperationsType* SubMatrix (OperationsType *a, OperationsType *b) {
+	OperationsType* c;
+	c = a->vtable[INDEX_SUB_FUNCTION] (a, b);
+	return c;
+/*	if(c != NULL)
+		return c;
+	else{
+		return c = a->vtable[INDEX_ADD_DIFF_FUNCTION] (a, b);
+	}
+*/
+}
+
+OperationsTypeDMatrix * SubDDMatrix (OperationsTypeDMatrix *a, OperationsTypeDMatrix *b) {
+	int i, j;
+	OperationsTypeDMatrix *sum;
+	i = 0; j = 0;
+	sum = (OperationsTypeDMatrix*) malloc (sizeof(OperationsTypeDMatrix));
+	// складывать можно только матрицы одинаковой размерности
+	if(a->value->columns != b->value->columns || a->value->rows != b->value->rows)
+		return NULL;
+	if(sizeof(a->value->arr[0][0]) != sizeof(b->value->arr[0][0]))
+	{
+		return NULL;
+	}		
+	sum->head = a->head;
+	sum->value = (DMatrix *) malloc (sizeof(DMatrix));
+	sum->value->columns = a->value->columns;
+	sum->value->rows = a->value->rows;
+
+	sum->value->arr = malDArr(sum->value->columns, sum->value->rows);
+
+
+	for(i = 0; i < sum->value->columns; i++)
+	{
+		for(j = 0; j < sum->value->rows; j++)
+		{
+			sum->value->arr[i][j] =  a->value->arr[i][j] - b->value->arr[i][j];
+		}
+	}
+
+    return sum;
+}
+
+OperationsTypeIMatrix * SubIIMatrix (OperationsTypeIMatrix *a, OperationsTypeIMatrix *b) {
+	int i, j;
+	OperationsTypeIMatrix *sum;
+	i = 0; j = 0;
+	sum = (OperationsTypeIMatrix*) malloc (sizeof(OperationsTypeIMatrix));
+	// складывать можно только матрицы одинаковой размерности
+	if(a->value->columns != b->value->columns || a->value->rows != b->value->rows)
+		return NULL;
+	if(sizeof(a->value->arr[0][0]) != sizeof(b->value->arr[0][0]))
+	{
+		return NULL;
+	}		
+	sum->head = a->head;
+	sum->value = (IMatrix *) malloc (sizeof(IMatrix));
+	sum->value->columns = a->value->columns;
+	sum->value->rows = a->value->rows;
+
+	sum->value->arr = malIArr(sum->value->columns, sum->value->rows);
+
+
+	for(i = 0; i < sum->value->columns; i++)
+	{
+		for(j = 0; j < sum->value->rows; j++)
+		{
+			sum->value->arr[i][j] =  a->value->arr[i][j] - b->value->arr[i][j];
+		}
+	}
+
+    return sum;
+}
+
 ///////////////////// Перемножение матриц
 OperationsType* MulMatrix (OperationsType *a, OperationsType *b) {
     // можно ведь работать с двумя виртуальными таблицами..
@@ -391,10 +467,10 @@ int main () {
 
 // массив указателей на функции, работающих с OperationsTypeIMatrix
 OperationProto vtableIMatrix[] = {(OperationProto) PrintIMatrix, (OperationProto) InitIMatrix,
-(OperationProto)AddIIMatrix, (OperationProto)MulIIMatrix};
+(OperationProto)AddIIMatrix, (OperationProto)MulIIMatrix, (OperationProto)SubIIMatrix};
 // массив указателей на функции, работающих с OperationsTypeDMatrix
 OperationProto vtableDMatrix[] = {(OperationProto) PrintDMatrix, (OperationProto) InitDMatrix,
-(OperationProto)AddDDMatrix, (OperationProto)MulDDMatrix};
+(OperationProto)AddDDMatrix, (OperationProto)MulDDMatrix, (OperationProto)SubDDMatrix};
 
 OperationsTypeIMatrix IM1 = {vtableIMatrix, NULL};
 OperationsTypeIMatrix IM2 = {vtableIMatrix, NULL};
@@ -419,6 +495,12 @@ OperationsTypeDMatrix *DM3;
 
 	IM3 = MulMatrix(&IM1, &IM2);
 	DM3 = MulMatrix(&DM1, &DM2);
+
+    PrintMatrix(IM3);
+    PrintMatrix(DM3);
+
+	IM3 = SubMatrix(&IM1, &IM2);
+	DM3 = SubMatrix(&DM1, &DM2);
 
     PrintMatrix(IM3);
     PrintMatrix(DM3);

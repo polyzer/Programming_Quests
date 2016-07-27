@@ -181,22 +181,81 @@ OperationsTypeIMatrix * AddIIMatrix (OperationsTypeIMatrix *a, OperationsTypeIMa
     return sum;
 }
 ///////////////////// Перемножение матриц
-
-void PrintInt (OperationsTypeInt *a) {
-    
-    printf ("%d\n", a->value);
+OperationsType* MulMatrix (OperationsType *a, OperationsType *b) {
+    // можно ведь работать с двумя виртуальными таблицами..
+	OperationsType* c;
+	c = a->vtable[INDEX_MUL_FUNCTION] (a, b);
+	return c;
+/*	if(c != NULL)
+		return c;
+	else{
+		return c = a->vtable[INDEX_ADD_DIFF_FUNCTION] (a, b);
+	}
+*/
 }
 
-void PrintDouble (OperationsTypeDouble *a) {
-    
-    printf ("%f\n", a->value);
+OperationsTypeDMatrix * MulDDMatrix (OperationsTypeDMatrix *a, OperationsTypeDMatrix *b) {
+	int i, j, k;
+	OperationsTypeDMatrix *mul;
+	i = 0; j = 0; k = 0;
+	mul = (OperationsTypeDMatrix*) malloc (sizeof(OperationsTypeDMatrix));
+	// переможать можно только матрицы с columns = rows
+	if(a->value->columns != b->value->rows || a->value->rows != b->value->columns)
+		return NULL;
+	if(sizeof(a->value->arr[0][0]) != sizeof(b->value->arr[0][0]))
+	{
+		return NULL;
+	}		
+	mul->head = a->head;
+	mul->value = (DMatrix *) malloc (sizeof(DMatrix));
+	mul->value->columns = a->value->columns;
+	mul->value->rows = b->value->rows;
+	for(i = 0; i < mul->value->columns; i++)
+	{
+		for(j = 0; j < mul->value->rows; j++)
+		{
+			for(k = 0; k < a->value->rows; k++)
+			{
+				mul->value->arr[i][j] += a->value->arr[i][k] * b->value->arr[k][j];
+			}
+		}
+	}
+
+    return mul;
 }
 
-void Print (OperationsType *a) {
-    
-    ((OperationProtoPrint)a->vtable[INDEX_PRINT_FUNCTION]) (a);
+OperationsTypeIMatrix * MulIIMatrix (OperationsTypeIMatrix *a, OperationsTypeIMatrix *b) {
+	int i, j, k;
+	OperationsTypeIMatrix *mul;
+	i = 0; j = 0; k = 0;
+	mul = (OperationsTypeIMatrix*) malloc (sizeof(OperationsTypeIMatrix));
+	// переможать можно только матрицы с columns = rows
+	if(a->value->columns != b->value->rows || a->value->rows != b->value->columns)
+		return NULL;
+	if(sizeof(a->value->arr[0][0]) != sizeof(b->value->arr[0][0]))
+	{
+		return NULL;
+	}		
+	mul->head = a->head;
+	mul->value = (IMatrix *) malloc (sizeof(IMatrix));
+	mul->value->columns = a->value->columns;
+	mul->value->rows = b->value->rows;
+	for(i = 0; i < mul->value->columns; i++)
+	{
+		for(j = 0; j < mul->value->rows; j++)
+		{
+			for(k = 0; k < a->value->rows; k++)
+			{
+				mul->value->arr[i][j] += a->value->arr[i][k] * b->value->arr[k][j];
+			}
+		}
+	}
+
+    return mul;
 }
-// вывод матриц
+
+
+//////////////////////// Вывод Матриц
 void PrintMatrix (OperationsType *a) {
     
     ((OperationProtoPrint)a->vtable[INDEX_PRINT_FUNCTION]) (a);

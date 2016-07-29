@@ -472,8 +472,8 @@ double DetMatrix (OperationsType* a)
 
 double DetDMatrix(OperationsTypeDMatrix *a)
 {
-	int i, j, k, q, p, div;
-	double *td, det;
+	int i, j, k, q, p;
+	double *td, det, mul, div;
 	DMatrix DM;
 	// надо делать проверку на квадратность матрицы
 	if(a->value->columns != a->value->rows)
@@ -493,12 +493,11 @@ double DetDMatrix(OperationsTypeDMatrix *a)
 	// приводим матрицу к треугольному виду!
 	for(i = 0; i < DM.columns-1; i++)
 	{
-		for(j = i; j < DM.rows; j++)
-		{
-			//сначала ищем строку, в которой первый элемент [k][j] != 0
+		j = i;
+		//сначала ищем строку, в которой первый элемент [k][j] != 0
 			for(k = i; k < DM.columns; k++)
 			{
-				if(DM.arr[k][j] != 0)
+				if(DM.arr[k][j] == 0)
 				{
 					td = DM.arr[i];
 					DM.arr[i] = DM.arr[k];
@@ -509,25 +508,27 @@ double DetDMatrix(OperationsTypeDMatrix *a)
 						i++;
 						k = i;
 					}
+					//если мы уже все везде прошли, то определитель == 0;
+					if(i == DM.columns-1)
+					{
+						return 0;
+					}
+				}else
 					break;
-				}
-				//если мы уже все везде прошли, то определитель == 0;
-				if(i == DM.columns-1)
-				{
-					return 0;
-				}
 			}
+			div = DM.arr[i][j];
 			// сначала поделим все на значение первого элемента!
 			for(k = j; k < DM.rows; k++)
 			{
 				DM.arr[i][k] /= div;
 			}
-			// теперь вычитаем из нижних строк данные
-			for(k = i; k < DM.columns-1; k++)
+			// теперь вычитаем из нижних строк данную, умноженную на первый элемент строки ниже!
+			for(k = i+1; k < DM.columns; k++)
 			{
+				mul = DM.arr[k][j];
 				for(q = j; q < DM.rows; q++)
 				{
-					DM.arr[k+1][q] -= DM.arr[k][q] * DM.arr[k][j];
+					DM.arr[k][q] -= DM.arr[i][q] * mul;
 				}
 			}
 			// Теперь домножаем строку обратно все на значение первого элемента!
@@ -535,14 +536,13 @@ double DetDMatrix(OperationsTypeDMatrix *a)
 			{
 				DM.arr[i][k] *= div;
 			}
-		}
 	}
 	// вывод
 	for(i = 0; i < DM.columns; i++)
 	{
-		for(j = i; j < DM.rows; j++)
+		for(j = 0; j < DM.rows; j++)
 		{
-			printf("%f ",DM.arr[i][j]);
+			printf("%d ",DM.arr[i][j]);
 		}
 		printf("\n");
 	}
@@ -551,10 +551,8 @@ double DetDMatrix(OperationsTypeDMatrix *a)
 	det = 1;
 	for(i = 0; i < DM.columns; i++)
 	{
-		for(j = i; j < DM.rows; j++)
-		{
-			det *= DM.arr[i][j];
-		}
+		j=i;
+		det *= DM.arr[i][j];
 	}
 	return det;
 }
@@ -612,12 +610,12 @@ double DetIMatrix(OperationsTypeIMatrix *a)
 				DM.arr[i][k] /= div;
 			}
 			// теперь вычитаем из нижних строк данную, умноженную на первый элемент строки ниже!
-			mul = DM.arr[i+1][j];
-			for(k = i; k < DM.columns-1; k++)
+			for(k = i+1; k < DM.columns; k++)
 			{
+				mul = DM.arr[k][j];
 				for(q = j; q < DM.rows; q++)
 				{
-					DM.arr[k+1][q] -= DM.arr[k][q] * mul;
+					DM.arr[k][q] -= DM.arr[i][q] * mul;
 				}
 			}
 			// Теперь домножаем строку обратно все на значение первого элемента!
@@ -663,10 +661,10 @@ OperationsTypeDMatrix DM1 = {vtableDMatrix, NULL};
 OperationsTypeDMatrix DM2 = {vtableDMatrix, NULL};
 OperationsTypeDMatrix *DM3;
 
-	InitMatrix(&IM1, "2 2; 5 6 9 3");
-	InitMatrix(&IM2, "2 2; 5 6 9 3");
-	InitMatrix(&DM1, "2 2; 5.0 6.0 9.0 3.0");
-	InitMatrix(&DM2, "2 2; 5.0 6.0 9.0 3.0");
+	InitMatrix(&IM1, "3 3; 5 6 9 3 8 37 95 1 7");
+	InitMatrix(&IM2, "3 3; 5 6 9 3 8 37 95 1 7");
+	InitMatrix(&DM1, "3 3; 5.0 6.0 9.0 3.0 8.0 37.0 95.0 1.0 7.0");
+	InitMatrix(&DM2, "3 3; 5.0 6.0 9.0 3.0 8.0 37.0 95.0 1.0 7.0");
 
 	IM3 = AddMatrix(&IM1, &IM2);
 	DM3 = AddMatrix(&DM1, &DM2);

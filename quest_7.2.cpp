@@ -17,12 +17,15 @@
 // обобщённая структура
 typedef struct _OperationsType OperationsType;
 
-// тип указателя на обобщённую функцию сложения
+// тип указателя на обобщённую функцию сложения/умножения/вычитания
 typedef OperationsType * (*OperationProto) (OperationsType *a, OperationsType *b);
 // тип указателя на обобщённую функцию вывода
 typedef void * (*OperationProtoPrint) (OperationsType *a);
 // тип указателя на обобщённую функцию инициализации
 typedef void * (*OperationProtoInit) (OperationsType *a, const char *str);
+// тип указателя на обобщённую функцию вычисления обратной матрицы/определителя
+typedef OperationsType *(*OperationProtoRev) (OperationsType *a);
+typedef double (*OperationProtoDet) (OperationsType *a);
 
 
 struct _OperationsType {
@@ -461,16 +464,197 @@ void *InitDMatrix(OperationsTypeDMatrix *a, const char *str1)
 	}
 	free(str);
 }
+/////////////////// ОПРЕДЕЛИТЕЛЬ Матрицы
+double DetMatrix (OperationsType* a) 
+{    
+	return ((OperationProtoDet) a->vtable[INDEX_DET_FUNCTION]) (a);
+}
+
+double DetDMatrix(OperationsTypeDMatrix *a)
+{
+	int i, j, k, q, p, div;
+	double *td, det;
+	DMatrix DM;
+	// надо делать проверку на квадратность матрицы
+	if(a->value->columns != a->value->rows)
+		return -2;
+	
+	DM.columns = a->value->columns;
+	DM.rows = a->value->rows;
+	DM.arr = malDArr(DM.columns, DM.rows);
+	for(i = 0; i < DM.columns; i++)
+	{
+		for(j = 0; j < DM.rows; j++)
+		{
+			DM.arr[i][j] = a->value->arr[i][j];
+		}
+	}
+
+	// приводим матрицу к треугольному виду!
+	for(i = 0; i < DM.columns-1; i++)
+	{
+		for(j = i; j < DM.rows; j++)
+		{
+			//сначала ищем строку, в которой первый элемент [k][j] != 0
+			for(k = i; k < DM.columns; k++)
+			{
+				if(DM.arr[k][j] != 0)
+				{
+					td = DM.arr[i];
+					DM.arr[i] = DM.arr[k];
+					DM.arr[i] = td;
+					// если мы прошлись по всем строчкам, и все элементы == 0 в данной позиции, то сначал а пробуем, в следующей позиции j 
+					if(k == DM.columns - 1)
+					{
+						i++;
+						k = i;
+					}
+					break;
+				}
+				//если мы уже все везде прошли, то определитель == 0;
+				if(i == DM.columns-1)
+				{
+					return 0;
+				}
+			}
+			// сначала поделим все на значение первого элемента!
+			for(k = j; k < DM.rows; k++)
+			{
+				DM.arr[i][k] /= div;
+			}
+			// теперь вычитаем из нижних строк данные
+			for(k = i; k < DM.columns-1; k++)
+			{
+				for(q = j; q < DM.rows; q++)
+				{
+					DM.arr[k+1][q] -= DM.arr[k][q] * DM.arr[k][j];
+				}
+			}
+			// Теперь домножаем строку обратно все на значение первого элемента!
+			for(k = j; k < DM.rows; k++)
+			{
+				DM.arr[i][k] *= div;
+			}
+		}
+	}
+	// вывод
+	for(i = 0; i < DM.columns; i++)
+	{
+		for(j = i; j < DM.rows; j++)
+		{
+			printf("%f ",DM.arr[i][j]);
+		}
+		printf("\n");
+	}
+
+	// перемножаем диагональные элементы и возвращаем значение определителя
+	det = 1;
+	for(i = 0; i < DM.columns; i++)
+	{
+		for(j = i; j < DM.rows; j++)
+		{
+			det *= DM.arr[i][j];
+		}
+	}
+	return det;
+}
+
+double DetIMatrix(OperationsTypeIMatrix *a)
+{
+	int i, j, k, q, p;
+	double *td, det, mul, div;
+	DMatrix DM;
+	// надо делать проверку на квадратность матрицы
+	if(a->value->columns != a->value->rows)
+		return -2;
+	
+	DM.columns = a->value->columns;
+	DM.rows = a->value->rows;
+	DM.arr = malDArr(DM.columns, DM.rows);
+	for(i = 0; i < DM.columns; i++)
+	{
+		for(j = 0; j < DM.rows; j++)
+		{
+			DM.arr[i][j] = a->value->arr[i][j];
+		}
+	}
+
+	// приводим матрицу к треугольному виду!
+	for(i = 0; i < DM.columns-1; i++)
+	{
+		j = i;
+		//сначала ищем строку, в которой первый элемент [k][j] != 0
+			for(k = i; k < DM.columns; k++)
+			{
+				if(DM.arr[k][j] == 0)
+				{
+					td = DM.arr[i];
+					DM.arr[i] = DM.arr[k];
+					DM.arr[i] = td;
+					// если мы прошлись по всем строчкам, и все элементы == 0 в данной позиции, то сначал а пробуем, в следующей позиции j 
+					if(k == DM.columns - 1)
+					{
+						i++;
+						k = i;
+					}
+					//если мы уже все везде прошли, то определитель == 0;
+					if(i == DM.columns-1)
+					{
+						return 0;
+					}
+				}else
+					break;
+			}
+			div = DM.arr[i][j];
+			// сначала поделим все на значение первого элемента!
+			for(k = j; k < DM.rows; k++)
+			{
+				DM.arr[i][k] /= div;
+			}
+			// теперь вычитаем из нижних строк данную, умноженную на первый элемент строки ниже!
+			mul = DM.arr[i+1][j];
+			for(k = i; k < DM.columns-1; k++)
+			{
+				for(q = j; q < DM.rows; q++)
+				{
+					DM.arr[k+1][q] -= DM.arr[k][q] * mul;
+				}
+			}
+			// Теперь домножаем строку обратно все на значение первого элемента!
+			for(k = j; k < DM.rows; k++)
+			{
+				DM.arr[i][k] *= div;
+			}
+	}
+	// вывод
+	for(i = 0; i < DM.columns; i++)
+	{
+		for(j = 0; j < DM.rows; j++)
+		{
+			printf("%f ",DM.arr[i][j]);
+		}
+		printf("\n");
+	}
+
+	// перемножаем диагональные элементы и возвращаем значение определителя
+	det = 1;
+	for(i = 0; i < DM.columns; i++)
+	{
+		j=i;
+		det *= DM.arr[i][j];
+	}
+	return det;
+}
 
 
 int main () {
-
+double det;
 // массив указателей на функции, работающих с OperationsTypeIMatrix
 OperationProto vtableIMatrix[] = {(OperationProto) PrintIMatrix, (OperationProto) InitIMatrix,
-(OperationProto)AddIIMatrix, (OperationProto)MulIIMatrix, (OperationProto)SubIIMatrix};
+	(OperationProto)AddIIMatrix, (OperationProto)MulIIMatrix, (OperationProto)SubIIMatrix, (OperationProto)DetIMatrix};
 // массив указателей на функции, работающих с OperationsTypeDMatrix
 OperationProto vtableDMatrix[] = {(OperationProto) PrintDMatrix, (OperationProto) InitDMatrix,
-(OperationProto)AddDDMatrix, (OperationProto)MulDDMatrix, (OperationProto)SubDDMatrix};
+(OperationProto)AddDDMatrix, (OperationProto)MulDDMatrix, (OperationProto)SubDDMatrix,(OperationProto) DetDMatrix};
 
 OperationsTypeIMatrix IM1 = {vtableIMatrix, NULL};
 OperationsTypeIMatrix IM2 = {vtableIMatrix, NULL};
@@ -505,7 +689,8 @@ OperationsTypeDMatrix *DM3;
     PrintMatrix(IM3);
     PrintMatrix(DM3);
 
-
+	det = DetMatrix(&IM1);
+	printf("%f\n", det);
 	system("pause");
     return 0;
 }

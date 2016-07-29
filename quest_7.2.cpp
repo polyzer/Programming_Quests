@@ -473,12 +473,13 @@ double DetMatrix (OperationsType* a)
 double DetDMatrix(OperationsTypeDMatrix *a)
 {
 	int i, j, k, q, p;
+	long findNullColumn;
 	double *td, det, mul, div;
 	DMatrix DM;
 	// надо делать проверку на квадратность матрицы
 	if(a->value->columns != a->value->rows)
 		return -2;
-	
+	findNullColumn = 0;
 	DM.columns = a->value->columns;
 	DM.rows = a->value->rows;
 	DM.arr = malDArr(DM.columns, DM.rows);
@@ -487,7 +488,21 @@ double DetDMatrix(OperationsTypeDMatrix *a)
 		for(j = 0; j < DM.rows; j++)
 		{
 			DM.arr[i][j] = a->value->arr[i][j];
+			if(DM.arr[i][j] == 0)
+				findNullColumn++;
 		}
+		// определяем, есть ли нулевая строка
+		if(findNullColumn == DM.rows)
+		{
+			// если есть, то освобождаем то, что уже заняли!
+			for(k = 0; k <= i; k++)
+			{
+				free(DM.arr[k]);
+			}
+			free(DM.arr);
+			return 0;
+		}
+		findNullColumn = 0;
 	}
 
 	// приводим матрицу к треугольному виду!
@@ -495,27 +510,23 @@ double DetDMatrix(OperationsTypeDMatrix *a)
 	{
 		j = i;
 		//сначала ищем строку, в которой первый элемент [k][j] != 0
-			for(k = i; k < DM.columns; k++)
-			{
-				if(DM.arr[k][j] == 0)
+			if(DM.arr[i][j] == 0)
+				for(k = i; k < DM.columns; k++)
 				{
-					td = DM.arr[i];
-					DM.arr[i] = DM.arr[k];
-					DM.arr[i] = td;
-					// если мы прошлись по всем строчкам, и все элементы == 0 в данной позиции, то сначал а пробуем, в следующей позиции j 
-					if(k == DM.columns - 1)
+					if(DM.arr[k][j] != 0)
 					{
-						i++;
-						k = i;
-					}
-					//если мы уже все везде прошли, то определитель == 0;
-					if(i == DM.columns-1)
+						td = DM.arr[i];
+						DM.arr[i] = DM.arr[k];
+						DM.arr[k] = td;
+						break;
+						// если мы прошлись по всем строчкам, и все элементы == 0 в данной позиции, то сначал а пробуем, в следующей позиции j 
+						//если мы уже все везде прошли, то определитель == 0;
+						
+					}else if(k == DM.columns-1)
 					{
 						return 0;
 					}
-				}else
-					break;
-			}
+				}
 			div = DM.arr[i][j];
 			// сначала поделим все на значение первого элемента!
 			for(k = j; k < DM.rows; k++)
@@ -560,12 +571,13 @@ double DetDMatrix(OperationsTypeDMatrix *a)
 double DetIMatrix(OperationsTypeIMatrix *a)
 {
 	int i, j, k, q, p;
+	long findNullColumn;
 	double *td, det, mul, div;
 	DMatrix DM;
 	// надо делать проверку на квадратность матрицы
 	if(a->value->columns != a->value->rows)
 		return -2;
-	
+	findNullColumn = 0;
 	DM.columns = a->value->columns;
 	DM.rows = a->value->rows;
 	DM.arr = malDArr(DM.columns, DM.rows);
@@ -574,7 +586,21 @@ double DetIMatrix(OperationsTypeIMatrix *a)
 		for(j = 0; j < DM.rows; j++)
 		{
 			DM.arr[i][j] = a->value->arr[i][j];
+			if(DM.arr[i][j] == 0)
+				findNullColumn++;
 		}
+		// определяем, есть ли нулевая строка
+		if(findNullColumn == DM.rows)
+		{
+			// если есть, то освобождаем то, что уже заняли!
+			for(k = 0; k <= i; k++)
+			{
+				free(DM.arr[k]);
+			}
+			free(DM.arr);
+			return 0;
+		}
+		findNullColumn = 0;
 	}
 
 	// приводим матрицу к треугольному виду!
@@ -582,27 +608,23 @@ double DetIMatrix(OperationsTypeIMatrix *a)
 	{
 		j = i;
 		//сначала ищем строку, в которой первый элемент [k][j] != 0
-			for(k = i; k < DM.columns; k++)
-			{
-				if(DM.arr[k][j] == 0)
+			if(DM.arr[i][j] == 0)
+				for(k = i; k < DM.columns; k++)
 				{
-					td = DM.arr[i];
-					DM.arr[i] = DM.arr[k];
-					DM.arr[i] = td;
-					// если мы прошлись по всем строчкам, и все элементы == 0 в данной позиции, то сначал а пробуем, в следующей позиции j 
-					if(k == DM.columns - 1)
+					if(DM.arr[k][j] != 0)
 					{
-						i++;
-						k = i;
-					}
-					//если мы уже все везде прошли, то определитель == 0;
-					if(i == DM.columns-1)
+						td = DM.arr[i];
+						DM.arr[i] = DM.arr[k];
+						DM.arr[k] = td;
+						break;
+						// если мы прошлись по всем строчкам, и все элементы == 0 в данной позиции, то сначал а пробуем, в следующей позиции j 
+						//если мы уже все везде прошли, то определитель == 0;
+						
+					}else if(k == DM.columns-1)
 					{
 						return 0;
 					}
-				}else
-					break;
-			}
+				}
 			div = DM.arr[i][j];
 			// сначала поделим все на значение первого элемента!
 			for(k = j; k < DM.rows; k++)
@@ -661,7 +683,7 @@ OperationsTypeDMatrix DM1 = {vtableDMatrix, NULL};
 OperationsTypeDMatrix DM2 = {vtableDMatrix, NULL};
 OperationsTypeDMatrix *DM3;
 
-	InitMatrix(&IM1, "3 3; 5 6 9 3 8 37 95 1 7");
+	InitMatrix(&IM1, "3 3; 0 6 9 3 8 37 0 1 7");
 	InitMatrix(&IM2, "3 3; 5 6 9 3 8 37 95 1 7");
 	InitMatrix(&DM1, "3 3; 5.0 6.0 9.0 3.0 8.0 37.0 95.0 1.0 7.0");
 	InitMatrix(&DM2, "3 3; 5.0 6.0 9.0 3.0 8.0 37.0 95.0 1.0 7.0");

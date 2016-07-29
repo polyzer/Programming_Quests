@@ -665,6 +665,105 @@ double DetIMatrix(OperationsTypeIMatrix *a)
 	}
 	return det;
 }
+/////////////////// ОБРАТНАЯ МАТРИЦА
+OperationsType *RevMatrix (OperationsType* a) 
+{    
+	return ((OperationProtoRev) a->vtable[INDEX_DET_FUNCTION]) (a);
+}
+OperationsTypeDMatrix *RevDMatrix(OperationsTypeDMatrix *a)
+{
+	int i, j, k, q, p;
+	double *td, det, mul, div;
+	OperationsTypeDMatrix *Res; // то, что мы вернем, содержит сначала единичную матрицу
+	DMatrix DM; // единичная матрица
+	// если определитель матрицы == 0,  то обратная не существует!
+	if(DetMatrix(a) == 0)
+		return NULL;
+	// если определитель != 0, То ищем обратную!
+	Res = (OPerationsTypeDMatrix *) malloc(sizeof(OperationsTypeDMatrix));
+	Res->head = a->head;
+	Res->value->columns = a->value->columns;
+	Res->value->rows = a->value->rows;
+	Res->value->arr = malDArr(Res->value->columns, Res->value->rows);
+
+	DM.columns = a->value->columns;
+	DM.rows = a->value->rows;
+	DM.arr = malDArr(DM.columns, DM.rows);
+	// забиваем начальными значениями матрицы
+	for(i = 0; i < DM.columns; i++)
+	{
+		for(j = 0; j < DM.rows; j++)
+		{
+			DM.arr[i][j] = a->value->arr[i][j];
+			if(i == j)
+				Res->value->arr[i][j] == 1.0;
+			else
+				Res->value->arr[i][j] = 0;
+		}
+	}
+
+	// приводим матрицу к треугольному виду!
+	for(i = 0; i < DM.columns-1; i++)
+	{
+		j = i;
+		//сначала ищем строку, в которой первый элемент [k][j] != 0
+			if(DM.arr[i][j] == 0)
+				for(k = i; k < DM.columns; k++)
+				{
+					if(DM.arr[k][j] != 0)
+					{
+						td = DM.arr[i];
+						DM.arr[i] = DM.arr[k];
+						DM.arr[k] = td;
+						break;
+						// если мы прошлись по всем строчкам, и все элементы == 0 в данной позиции, то сначал а пробуем, в следующей позиции j 
+						//если мы уже все везде прошли, то определитель == 0;
+						
+					}else if(k == DM.columns-1)
+					{
+						return 0;
+					}
+				}
+			div = DM.arr[i][j];
+			// сначала поделим все на значение первого элемента!
+			for(k = j; k < DM.rows; k++)
+			{
+				DM.arr[i][k] /= div;
+			}
+			// теперь вычитаем из нижних строк данную, умноженную на первый элемент строки ниже!
+			for(k = i+1; k < DM.columns; k++)
+			{
+				mul = DM.arr[k][j];
+				for(q = j; q < DM.rows; q++)
+				{
+					DM.arr[k][q] -= DM.arr[i][q] * mul;
+				}
+			}
+			// Теперь домножаем строку обратно все на значение первого элемента!
+			for(k = j; k < DM.rows; k++)
+			{
+				DM.arr[i][k] *= div;
+			}
+	}
+	// вывод
+	for(i = 0; i < DM.columns; i++)
+	{
+		for(j = 0; j < DM.rows; j++)
+		{
+			printf("%d ",DM.arr[i][j]);
+		}
+		printf("\n");
+	}
+
+	// перемножаем диагональные элементы и возвращаем значение определителя
+	det = 1;
+	for(i = 0; i < DM.columns; i++)
+	{
+		j=i;
+		det *= DM.arr[i][j];
+	}
+	return det;
+}
 
 
 int main () {

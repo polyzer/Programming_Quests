@@ -806,7 +806,6 @@ OperationsTypeIMatrix *RevIMatrix(OperationsTypeIMatrix *a)
 				Res->value->arr[i][j] = 0;
 		}
 	}
-	PrintMatrix(Res);
 	// делаем элементарные преобразования
 	for(i = 0; i < DM.columns-1; i++)
 	{
@@ -900,7 +899,7 @@ OperationsTypeDMatrix *DM3;
 
 	InitMatrix(&IM1, "3 3; 0 6 9 3 8 37 0 1 7");
 	InitMatrix(&IM2, "3 3; 5 6 9 3 8 37 95 1 7");
-	InitMatrix(&DM1, "3 3; 5.0 6.0 9.0 3.0 8.0 37.0 95.0 1.0 7.0");
+	InitMatrix(&DM1, "3 3; 0.0 6.0 9.0 3.0 8.0 37.0 0.0 1.0 7.0");
 	InitMatrix(&DM2, "3 3; 5.0 6.0 9.0 3.0 8.0 37.0 95.0 1.0 7.0");
 
 /*	IM3 = AddMatrix(&IM1, &IM2);
@@ -923,7 +922,11 @@ OperationsTypeDMatrix *DM3;
 
 	det = DetMatrix(&IM1);
 */
-	RevMatrix(&IM1);
+	IM3 = RevMatrix(&IM1);
+	PrintMatrix(IM3);
+
+	DM3 = RevMatrix(&DM1);
+	PrintMatrix(DM3);
 //	printf("%f\n", det);
 	system("pause");
     return 0;

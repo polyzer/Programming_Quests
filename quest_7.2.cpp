@@ -697,7 +697,7 @@ OperationsTypeDMatrix *RevDMatrix(OperationsTypeDMatrix *a)
 		{
 			DM.arr[i][j] = a->value->arr[i][j];
 			if(i == j)
-				Res->value->arr[i][j] == 1;
+				Res->value->arr[i][j] = 1;
 			else
 				Res->value->arr[i][j] = 0;
 		}
@@ -801,7 +801,7 @@ OperationsTypeIMatrix *RevIMatrix(OperationsTypeIMatrix *a)
 		{
 			DM.arr[i][j] = a->value->arr[i][j];
 			if(i == j)
-				Res->value->arr[i][j] == 1;
+				Res->value->arr[i][j] = 1;
 			else
 				Res->value->arr[i][j] = 0;
 		}

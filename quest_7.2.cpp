@@ -668,7 +668,7 @@ double DetIMatrix(OperationsTypeIMatrix *a)
 /////////////////// ОБРАТНАЯ МАТРИЦА
 OperationsType *RevMatrix (OperationsType* a) 
 {    
-	return ((OperationProtoRev) a->vtable[INDEX_DET_FUNCTION]) (a);
+	return ((OperationProtoRev) a->vtable[INDEX_REV_FUNCTION]) (a);
 }
 OperationsTypeDMatrix *RevDMatrix(OperationsTypeDMatrix *a)
 {
@@ -680,8 +680,9 @@ OperationsTypeDMatrix *RevDMatrix(OperationsTypeDMatrix *a)
 	if(DetMatrix(a) == 0)
 		return NULL;
 	// если определитель != 0, То ищем обратную!
-	Res = (OPerationsTypeDMatrix *) malloc(sizeof(OperationsTypeDMatrix));
+	Res = (OperationsTypeDMatrix *) malloc(sizeof(OperationsTypeDMatrix));
 	Res->head = a->head;
+	Res->value = (DMatrix *) malloc (sizeof(DMatrix));
 	Res->value->columns = a->value->columns;
 	Res->value->rows = a->value->rows;
 	Res->value->arr = malDArr(Res->value->columns, Res->value->rows);
@@ -696,13 +697,13 @@ OperationsTypeDMatrix *RevDMatrix(OperationsTypeDMatrix *a)
 		{
 			DM.arr[i][j] = a->value->arr[i][j];
 			if(i == j)
-				Res->value->arr[i][j] == 1.0;
+				Res->value->arr[i][j] == 1;
 			else
 				Res->value->arr[i][j] = 0;
 		}
 	}
-
-	// приводим матрицу к треугольному виду!
+	PrintMatrix(Res);
+	// делаем элементарные преобразования
 	for(i = 0; i < DM.columns-1; i++)
 	{
 		j = i;
@@ -715,9 +716,12 @@ OperationsTypeDMatrix *RevDMatrix(OperationsTypeDMatrix *a)
 						td = DM.arr[i];
 						DM.arr[i] = DM.arr[k];
 						DM.arr[k] = td;
+
+						td = Res->value->arr[i];
+						Res->value->arr[i] = Res->value->arr[k];
+						Res->value->arr[k] = td;
+
 						break;
-						// если мы прошлись по всем строчкам, и все элементы == 0 в данной позиции, то сначал а пробуем, в следующей позиции j 
-						//если мы уже все везде прошли, то определитель == 0;
 						
 					}else if(k == DM.columns-1)
 					{
@@ -726,43 +730,153 @@ OperationsTypeDMatrix *RevDMatrix(OperationsTypeDMatrix *a)
 				}
 			div = DM.arr[i][j];
 			// сначала поделим все на значение первого элемента!
-			for(k = j; k < DM.rows; k++)
+			for(k = 0; k < DM.rows; k++)
 			{
 				DM.arr[i][k] /= div;
+				Res->value->arr[i][k] /= div;
 			}
 			// теперь вычитаем из нижних строк данную, умноженную на первый элемент строки ниже!
 			for(k = i+1; k < DM.columns; k++)
 			{
 				mul = DM.arr[k][j];
-				for(q = j; q < DM.rows; q++)
+				for(q = 0; q < DM.rows; q++)
 				{
 					DM.arr[k][q] -= DM.arr[i][q] * mul;
+					Res->value->arr[k][q] -= Res->value->arr[i][q] * mul;
 				}
 			}
-			// Теперь домножаем строку обратно все на значение первого элемента!
-			for(k = j; k < DM.rows; k++)
+	}
+
+	j = i;
+	div = DM.arr[i][j];
+	// сначала поделим все на значение первого элемента!
+	for(k = 0; k < DM.rows; k++)
+	{
+		DM.arr[i][k] /= div;
+		Res->value->arr[i][k] /= div;
+	}
+	// теперь в обратном порядке!
+	for(i = DM.columns-1; i >= 0; i--)
+	{
+		j = i;
+			// теперь вычитаем из Верхних строк данную, умноженную на первый элемент строки выше!
+			for(k = i-1; k >= 0; k--)
 			{
-				DM.arr[i][k] *= div;
+				mul = DM.arr[k][j];
+				for(q = DM.rows-1; q >= 0; q--)
+				{
+					DM.arr[k][q] -= DM.arr[i][q] * mul;
+					Res->value->arr[k][q] -= Res->value->arr[i][q] * mul;
+				}
 			}
 	}
-	// вывод
+
+	// перемножаем диагональные элементы и возвращаем значение определителя
+	return Res;
+}
+OperationsTypeIMatrix *RevIMatrix(OperationsTypeIMatrix *a)
+{
+	int i, j, k, q, p;
+	double *td, det, mul, div;
+	OperationsTypeIMatrix *Res; // то, что мы вернем, содержит сначала единичную матрицу
+	IMatrix DM; // единичная матрица
+	// если определитель матрицы == 0,  то обратная не существует!
+	if(DetMatrix(a) == 0)
+		return NULL;
+	// если определитель != 0, То ищем обратную!
+	Res = (OperationsTypeIMatrix *) malloc(sizeof(OperationsTypeIMatrix));
+	Res->head = a->head;
+	Res->value = (IMatrix *) malloc (sizeof(IMatrix));
+	Res->value->columns = a->value->columns;
+	Res->value->rows = a->value->rows;
+	Res->value->arr = malIArr(Res->value->columns, Res->value->rows);
+
+	DM.columns = a->value->columns;
+	DM.rows = a->value->rows;
+	DM.arr = malDArr(DM.columns, DM.rows);
+	// забиваем начальными значениями матрицы
 	for(i = 0; i < DM.columns; i++)
 	{
 		for(j = 0; j < DM.rows; j++)
 		{
-			printf("%d ",DM.arr[i][j]);
+			DM.arr[i][j] = a->value->arr[i][j];
+			if(i == j)
+				Res->value->arr[i][j] == 1;
+			else
+				Res->value->arr[i][j] = 0;
 		}
-		printf("\n");
+	}
+	PrintMatrix(Res);
+	// делаем элементарные преобразования
+	for(i = 0; i < DM.columns-1; i++)
+	{
+		j = i;
+		//сначала ищем строку, в которой первый элемент [k][j] != 0
+			if(DM.arr[i][j] == 0)
+				for(k = i; k < DM.columns; k++)
+				{
+					if(DM.arr[k][j] != 0)
+					{
+						td = DM.arr[i];
+						DM.arr[i] = DM.arr[k];
+						DM.arr[k] = td;
+
+						td = Res->value->arr[i];
+						Res->value->arr[i] = Res->value->arr[k];
+						Res->value->arr[k] = td;
+
+						break;
+						
+					}else if(k == DM.columns-1)
+					{
+						return 0;
+					}
+				}
+			div = DM.arr[i][j];
+			// сначала поделим все на значение первого элемента!
+			for(k = 0; k < DM.rows; k++)
+			{
+				DM.arr[i][k] /= div;
+				Res->value->arr[i][k] /= div;
+			}
+			// теперь вычитаем из нижних строк данную, умноженную на первый элемент строки ниже!
+			for(k = i+1; k < DM.columns; k++)
+			{
+				mul = DM.arr[k][j];
+				for(q = 0; q < DM.rows; q++)
+				{
+					DM.arr[k][q] -= DM.arr[i][q] * mul;
+					Res->value->arr[k][q] -= Res->value->arr[i][q] * mul;
+				}
+			}
+	}
+
+	j = i;
+	div = DM.arr[i][j];
+	// сначала поделим все на значение первого элемента!
+	for(k = 0; k < DM.rows; k++)
+	{
+		DM.arr[i][k] /= div;
+		Res->value->arr[i][k] /= div;
+	}
+	// теперь в обратном порядке!
+	for(i = DM.columns-1; i >= 0; i--)
+	{
+		j = i;
+			// теперь вычитаем из Верхних строк данную, умноженную на первый элемент строки выше!
+			for(k = i-1; k >= 0; k--)
+			{
+				mul = DM.arr[k][j];
+				for(q = DM.rows-1; q >= 0; q--)
+				{
+					DM.arr[k][q] -= DM.arr[i][q] * mul;
+					Res->value->arr[k][q] -= Res->value->arr[i][q] * mul;
+				}
+			}
 	}
 
 	// перемножаем диагональные элементы и возвращаем значение определителя
-	det = 1;
-	for(i = 0; i < DM.columns; i++)
-	{
-		j=i;
-		det *= DM.arr[i][j];
-	}
-	return det;
+	return Res;
 }
 
 
@@ -770,10 +884,12 @@ int main () {
 double det;
 // массив указателей на функции, работающих с OperationsTypeIMatrix
 OperationProto vtableIMatrix[] = {(OperationProto) PrintIMatrix, (OperationProto) InitIMatrix,
-	(OperationProto)AddIIMatrix, (OperationProto)MulIIMatrix, (OperationProto)SubIIMatrix, (OperationProto)DetIMatrix};
+	(OperationProto)AddIIMatrix, (OperationProto)MulIIMatrix, (OperationProto)SubIIMatrix, 
+	(OperationProto)DetIMatrix, (OperationProto) RevIMatrix};
 // массив указателей на функции, работающих с OperationsTypeDMatrix
 OperationProto vtableDMatrix[] = {(OperationProto) PrintDMatrix, (OperationProto) InitDMatrix,
-(OperationProto)AddDDMatrix, (OperationProto)MulDDMatrix, (OperationProto)SubDDMatrix,(OperationProto) DetDMatrix};
+(OperationProto)AddDDMatrix, (OperationProto)MulDDMatrix, (OperationProto)SubDDMatrix,
+(OperationProto) DetDMatrix, (OperationProto) RevDMatrix};
 
 OperationsTypeIMatrix IM1 = {vtableIMatrix, NULL};
 OperationsTypeIMatrix IM2 = {vtableIMatrix, NULL};
@@ -787,11 +903,8 @@ OperationsTypeDMatrix *DM3;
 	InitMatrix(&DM1, "3 3; 5.0 6.0 9.0 3.0 8.0 37.0 95.0 1.0 7.0");
 	InitMatrix(&DM2, "3 3; 5.0 6.0 9.0 3.0 8.0 37.0 95.0 1.0 7.0");
 
-	IM3 = AddMatrix(&IM1, &IM2);
+/*	IM3 = AddMatrix(&IM1, &IM2);
 	DM3 = AddMatrix(&DM1, &DM2);
-
-//    intSum = Add (&intA, &intB);
-//    doubleSum = Add (&doubleA, &doubleB);
 
     PrintMatrix(IM3);
     PrintMatrix(DM3);
@@ -809,7 +922,9 @@ OperationsTypeDMatrix *DM3;
     PrintMatrix(DM3);
 
 	det = DetMatrix(&IM1);
-	printf("%f\n", det);
+*/
+	RevMatrix(&IM1);
+//	printf("%f\n", det);
 	system("pause");
     return 0;
 }

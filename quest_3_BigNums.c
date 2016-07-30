@@ -10,7 +10,7 @@ typedef struct _BigNumber{
 } BigNumber;
 
 BigNumber *createBigNum(const char *Str);
-BigNumber *addBigNums(BigNumber *BN1, BigNumber *BN2);
+BigNumber *addBigNums(const BigNumber *BN1, const BigNumber *BN2);
 void printBigNum(BigNumber *BN);
 
 int main (int argc, char **argv)
@@ -55,7 +55,8 @@ BigNumber *createBigNum(const char *cStr)
 	StrLen = strlen(Str);
 	//то, что мы вернем
 	NewNum = (BigNumber *) malloc(sizeof(BigNumber));
-	
+	i = 0;
+
 	// прворяем - 16 ричное ли число!
 	if ((Str[1] == 'x' || Str[1] == 'X') && (Str[0] == '0') || isalpha(Str[0]))
 	{

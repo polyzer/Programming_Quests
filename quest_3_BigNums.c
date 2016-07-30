@@ -2,24 +2,29 @@
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
+#include <ctype.h>
 
-#define SON 10
+typedef struct _BigNumber{
+	unsigned long long length;
+	unsigned int * number;
+} BigNumber;
 
-char *createBigNum(const char *Str);
-char *addBigNums(const char *BN1, const char *BN2);
-void printBigNum(const char *BN);
-char *mulBigNumOnInt(const char *BN1, int mul);
+BigNumber *createBigNum(const char *Str);
+BigNumber *addBigNums(BigNumber *BN1, BigNumber *BN2);
+void printBigNum(BigNumber *BN);
 
 int main (int argc, char **argv)
 {
-	char *BN1;
-	char *BN2;
-	char *BN3;
+	BigNumber *BN1;
+	BigNumber *BN2;
+	BigNumber *BN3;
 
 	setlocale(LC_ALL, "Russian");
 	
 	BN1 = createBigNum("0xFFFFFFFF");
+	printBigNum(BN1);
 	BN2 = createBigNum("1");
+	printBigNum(BN2);
 	BN3 = addBigNums(BN2, BN1);
 	printBigNum(BN3);
 
@@ -34,124 +39,167 @@ int main (int argc, char **argv)
 	return 0;
 }
 
-char *createBigNum(const char *Str)
+BigNumber *createBigNum(const char *cStr)
 {
-	// создаем новую строку
-	int i = 0; 
-	int factor = 0, hexdecnum = 0, multiplier = 1;
-	int StrLen = strlen(Str);
-	char *NewNum, *tnum, *tnum1;
+	// создаем новую строку 
+	int StrLen;
+	char tstr[11];
+	char *Str;
+	BigNumber * NewNum;
+	unsigned long long i,k, rest;
 	
-	if ((Str[1] == 'x' || Str[1] == 'X') && (Str[0] == '0'))
+	Str = (char *) malloc(strlen(cStr) + 1);
+	strcpy(Str, cStr);
+	Str[strlen(cStr)] = 0;
+	
+	StrLen = strlen(Str);
+	//то, что мы вернем
+	NewNum = (BigNumber *) malloc(sizeof(BigNumber));
+	
+	// прворяем - 16 ричное ли число!
+	if ((Str[1] == 'x' || Str[1] == 'X') && (Str[0] == '0') || isalpha(Str[0]))
 	{
-		NewNum = (char *) malloc(sizeof(char) * 2);
-		NewNum[0] = '0'; NewNum[1]= 0;
-		for(i = (StrLen - 1); i >= 2; i--)
+		if((Str[1] == 'x' || Str[1] == 'X') && (Str[0] == '0'))
 		{
-			tnum = (char *) malloc(sizeof(char) * 3);
-			if (Str[i] >= 65)
-			{
-				tnum[0] = Str[i] - 'A' + '0';
-				tnum[1] = '1';
-				tnum[2] = 0;
-			}else
-			{
-				tnum[0] = Str[i];
-				tnum[1] = 0;
-			}
-			tnum1 = mulBigNumOnInt(tnum, multiplier);
-			free(tnum);
-			NewNum = addBigNums(NewNum, tnum1);
-			multiplier = multiplier * 16;
-			free(tnum1);
+			Str[1] = '0';
+			Str[0] = '0';
 		}
-		return NewNum;
+		// выделяем память
+		NewNum->number = (unsigned int *) malloc(sizeof(unsigned int) * (StrLen/8 + 1));
+		// сколько букв не влезло в целое слово
+		rest = StrLen % 8;
+		// заполняем слова!
+		while(StrLen > 7)
+		{
+			for(k = 0; k < 8; k++)
+			{
+				tstr[7-k] = Str[StrLen - k];
+			}
+			StrLen -= 8;
+			tstr[k] = 0;
+			NewNum->number[i] = strtoul(tstr, NULL, 16);
+			i++;
+		}
+		for(k = 0; k < StrLen; k++)
+		{
+			tstr[k] = Str[k];
+		}
+		tstr[k] = 0;
+		NewNum->number[i] = strtoul(tstr, NULL, 16);
 
 	}else
 	{
-		NewNum = (char *) malloc(sizeof(char) * (StrLen + 1));
-		for(i = (StrLen - 1); i >= 0; i--)
+		// выделяем память
+		NewNum->number = (unsigned int *) malloc(sizeof(unsigned int) * (StrLen/10 + 1));
+		// сколько букв не влезло в целое слово
+		rest = StrLen % 8;
+		// заполняем слова!
+		while(StrLen > 10)
 		{
-			NewNum[(StrLen - 1) - i] = Str[i];
+			for(k = 0; k < 10; k++)
+			{
+				tstr[9-k] = Str[StrLen - k];
+			}
+			StrLen -= 10;
+			tstr[k] = 0;
+			// переводим в число и проверяем на прееполнение
+			if((NewNum->number[i] = strtoul(tstr, NULL, 10)) && NewNum->number[i] == UINT_MAX)
+			{
+				tstr[0] = '0';
+				NewNum->number[i] = strtoul(tstr, NULL, 10);
+			}
+			i++;
 		}
-		NewNum[strlen(Str)] = '\0';
+		for(k = 0; k < StrLen; k++)
+		{
+			tstr[k] = Str[k];
+		}
+		tstr[k] = 0;
+		NewNum->number[i] = strtoul(tstr, NULL, 10);
+
 	}
 
 	return NewNum;
 }
 
-char *mulBigNumOnInt(const char *BN1, int mul)
+BigNumber *addBigNums(const BigNumber *BN1, const BigNumber *BN2)
 {
-	int i;
-	char *retNum, *tch;
-	retNum = (char *) malloc(strlen(BN1) + 1);
-	strcpy(retNum, BN1);
-	for(i = 1; i < mul; i++)
-	{
-		tch = retNum;
-		retNum = addBigNums(retNum, BN1);
-		free(tch);
-	}
-	return retNum;
-}
-
-char *addBigNums(const char *num1, const char *num2)
-{
-	char *Res;
-	const char *tp;
-	int i;
-	short Digit, Num;
-	Digit = 0; 
-	if(strlen(num1) > strlen(num2)){
-		tp = num1;
+	const BigNumber *Bigger, *Smaller;
+	unsigned long long i, carry, rest;
+	BigNumber *Res;
+	i = 0;
+	// то, с чем будем сравнивать
+	Res = (BigNumber *) malloc(sizeof(BigNumber));
+	if(BN1->length >= BN2->length){
+		Bigger = BN1;
+		Smaller = BN2;
 	}
 	else{
-		tp = num2;
+		Bigger = BN2;
+		Smaller = BN1;
 	}
-	Res = (char *) malloc(sizeof(char) * (strlen(tp)+2));
-	i = 0, Num = 0;
-	// складываем числа
-	while(num1[i] != 0 && num2[i] != 0)
-	{
-		// складываем 2 числа
-		Num = num1[i] + num2[i] - 96; // 96 == 2*'0'
-		// записываем в текущий разряд
-		Res[i] = Digit + (Num % SON) + '0';
-		// перенос
-		Digit = Num / SON;
-		i++;
-	}
-	// теперь записываем оставшуюся часть числа!
-	while(tp[i] != 0)
-	{
-		// если есть с чем складывать!
-		if(Digit > 0)
+	// складываем сначала оба числа
+		for(i=0; i < Smaller->length; i++)
 		{
-			//Num = tp[i] - '0'; // 98 == 2*'0'
-			Num = Digit + (tp[i] - '0');
-			Res[i] = (Num % SON) + '0';		
-			Digit = Num / SON;
+			if(BN1->number[i] > INT_MAX && BN2->number[i] > INT_MAX)
+			{
+				carry = 1;
+				// ТУТ МОЖЕТ БЫТЬ КОСЯК!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+				Res->number[i] = (BN1->number[i] - INT_MAX) + (BN2->number[i] - INT_MAX)  + carry + 1;
+			} else if(BN1->number[i] > INT_MAX && BN2->number[i] < INT_MAX)
+			{
+				// 
+				if((BN1->number[i] - INT_MAX) + BN2->number[i] + carry > INT_MAX)
+				{
+					carry = 1;
+					Res->number[i] = (BN1->number[i] - INT_MAX) + BN2->number[i] + carry;
+				}else
+				{
+					carry = 0;
+					Res->number[i] =  (BN1->number[i] - INT_MAX) + BN2->number[i] + carry;
+				}
+			} else if(BN1->number[i] < INT_MAX && BN2->number[i] > INT_MAX)
+			{
+				// если у нас второе число меньше половины
+				if(BN1->number[i] + (BN2->number[i] - INT_MAX) + carry > INT_MAX)
+				{
+					carry = 1;
+					Res->number[i] = BN1->number[i] + (BN2->number[i] - INT_MAX) + carry;
+				}else
+				{
+					carry = 0;
+					Res->number[i] = BN1->number[i] + (BN2->number[i] - INT_MAX) + carry;
+				}
+				// если у нас оба числа меньше половины
+			} else
+			{
+				carry = 0;
+				Res->number[i] = BN1->number[i] + (BN2->number[i] - INT_MAX) + carry;
+			}
+		}
+		// теперь копируем одно число + перенос, если есть
+		for(; i < Bigger->length; i++)
+		{
+			Res->number[i] += Res->number[i] + carry;
+			carry = 0;
+		}
+		// i++ уже увеличено, и если есть перенос, 
+		// при том, что мы уже все числа скопировали, то тогда создаем новый разряд
+		// и устанавливаем значение Length!
+		if(carry == 1)
+		{
+			Res->number[i] = 1;
+			Res->length = i;
 		}else
-			Res[i] = tp[i];
-		i++;
-	}
-	if(Digit > 0)
-	{
-		Res[i] = Digit + '0';
-		Res[i+1] = 0;
-	}else
-		Res[i] = 0;
+			Res->length = i-1;
 
 	return Res;
 }
 
-void printBigNum(const char *BN)
+void printBigNum(BigNumber *BN)
 {
-	int i;
-	for(i = (strlen(BN) - 1); i >= 0; i--)
-	{
-		printf("%c", BN[i]);
-	}
-	printf("\n");
+	unsigned long long i;
+	for(i = BN->length-1; i >= 0 ; i--)
+		printf("%u", BN->number[i]);
 }
 

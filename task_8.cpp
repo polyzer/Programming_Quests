@@ -13,10 +13,8 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "../../expr/include/pcre.h"
-#include "../../expr/include/pcreposix.h"
-
-
+#include <pcre.h>
+#include <pcreposix.h>
 //----------------------------------------
 
 //#define _USE_GMP
@@ -79,12 +77,12 @@ clock_t end;
     end_time = clock();\
     printf ("%f\n", (double)(end_time-start_time)/CLK_TCK);
 
+#define MAX_MATCH 10
+//----------------------------------------
+//----------------------------------------
 
-//----------------------------------------
-//----------------------------------------
 
 //////////////////////////////////// STRING STRUCTURES
-
 typedef struct _StringMapEntry {
 
     struct _StringMapEntry *next;
@@ -102,42 +100,40 @@ typedef struct _StringMap {
 typedef StringMap VariableContainer;
 
 ///////////////////////////////////// COMMAND STRUCTURES
-
+// элемент списка команд функции
 struct CommandMapEntry // список комманд в функции
 {
 	struct CommandMapEntry *next; // указатель на следующую
 	char *CommandString; // строка, содержащая команду, которая при каждом вызове будет интерпретироваться  
-
 };
 
 typedef struct _CommandMap
 {
-	CommandMapEntry *first;
+	struct CommandMapEntry *first;
 
 } CommandMap;
 
 typedef CommandMap CommandContainer;
 
 ///////////////////////////////////// ARGUMENT STRUCTURES
-
-typedef struct ArgumentMapEntry // список аргументов
+struct ArgumentMapEntry // элемент списка аргументов функции
 {
 	struct ArgumentMapEntry *next; // указатель на следующий аргумент
 	char *name; // имя переменной, которое будет считываться из команды, и будет использоваться данный аргумент
-	struct _StringMapEntry *real; // указывает на переменную, которая была передана в качестве аргумента
-
+	struct _StringMapEntry *realVar; // указывает на переменную, которая была передана в качестве аргумента
+	char *realNumber;
 };
 
 typedef struct _ArgumentMap
 {
-	ArgumentMapEntry *first;
+    struct	ArgumentMapEntry *first;
 
 } ArgumentMap;
 
 typedef ArgumentMap ArgumentContainer;
 
 ///////////////////////////////// FUNCTION STRUCTURES
-
+// элемент списка функций
 typedef struct _FunctionMapEntry {
     
 	struct _FunctionMapEntry *next; // указатель на следующую функцию
@@ -169,22 +165,187 @@ struct CurrentReadingFunctionFieldsStruct
 	char *name;
 	ArgumentContainer *args;
 	CommandContainer *coms;
-};
+} CRFFObj;
 
 
 //----------------------------------------GLOBAL CONTAINERS
 
 VariableContainer glVars;
 FunctionContainer glFuncs;
-CurrentReadingFunctionFieldsStruct CRFFObj;
 //---------------------------------------- FUNCTIONS
+void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, const char *params);
+void SetCurrentFunctionName(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name);
+void InitCRFFObj(struct CurrentReadingFunctionFieldsStruct *Obj);
+struct CommandMapEntry *CreateAndInitCommandMapEntry(const char *commandline);
+struct ArgumentMapEntry *CreateAndInitArgumentMapEntry(const char *name);
+void InsertArgumentMap(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name);
+void InsertCommandMap(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name);
+void InitStringMap (StringMap *smap);
+StringMapEntry *CreateAndInitStringMapEntry (const char *key, const char *value);
+void InsertStringMap (StringMap *map, const char *key, const char *value);
+const char * GetStringByKey (StringMap *map, const char *key);
+void InitFuncsMap (FunctionMap *fmap);
+FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, CommandContainer *comap, ArgumentContainer *argmap);
+void InsertFunctionMap (FunctionMap *map, const char *name, CommandContainer *comap, ArgumentContainer *argmap);
+const char * GetStringByKey (StringMap *map, const char *key);
+StringMapEntry *GetVarByKey (StringMap *map, const char *key);
+FunctionMapEntry * GetFunctionByKey (FunctionMap *map, const char *key);
+int ComputeNumberOfBrackets(const char *str);
+const char *ComputeExpressionAndGetResult_s(const char *Num1, char operation,const char *Num2);
+const char *ParseLineNotEqualAndGetResult(const char *line);
+int GetCountOfFunctionArguments(FunctionMapEntry *fentry);
+int GetCountOfExecFuncParams(const char *argline);
+char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str);
+void ParseLine (const char *line);
+void ExecuteFunctionWithoutParams(FunctionContainer *fCont, const char *funcname);
+void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, const char *params);
+void ParseFile (const char *fileName);
+regmatch_t *GetPositionOfEntries(const char *str, const char *templ);
 
-void InitCRFFObj(CurrentReadingFunctionFieldsStruct *Obj)
+int main (int argc, char *argv[], char *envp[]) {
+	InitCRFFObj(&CRFFObj);
+    InitStringMap(&glVars);
+	InitFuncsMap(&glFuncs);
+
+	ParseLine("function getvar(a,b,c)");
+	ParseLine("a + b + c;");
+	ParseLine("end getvar");
+
+	ParseLine("var1 = 100;");
+	ParseLine("var2 = 200;");
+	ParseLine("var3 = 500;");
+	ParseLine("var4 = (var1 * (var2 + 100000)) / (var2 + 1);");
+	ParseLine("a8 = 300 - 400;");
+
+	ParseLine("function getvar2(a,b,c)");
+	ParseLine("(a + a) + (b + c);");
+	ParseLine("end getvar2");
+
+	ParseLine("getvar2(var1, var2,9374956);");
+	ParseLine("getvar2(1, 2,3);");
+
+/*
+    if (argc < 2) {
+        printf ("usage: %s filename\n", argv[0]);
+        return 1;
+        }
+
+    ParseFile (argv[1]);
+*/
+
+	system("pause");
+
+	return 0;
+}
+
+
+
+// функция, инициализирующая структуру для создания функций
+void InitCRFFObj(struct CurrentReadingFunctionFieldsStruct *Obj)
 {
-	Obj->name = NULL;
 	Obj->FunctionReadingMode = 0;
+	Obj->name = NULL;
 	Obj->args = NULL;
 	Obj->coms = NULL;
+}
+
+// создает и инициализирует элемент списка команд одной функции
+struct CommandMapEntry *CreateAndInitCommandMapEntry(const char *commandline)
+{
+	struct CommandMapEntry *entry;
+
+    entry = (struct CommandMapEntry*) malloc (sizeof(struct CommandMapEntry));
+    if (!entry) {
+        return NULL;
+        }
+
+	entry->CommandString = (char*) malloc (strlen (commandline) + 1);
+    if (!entry->CommandString) {
+        free (entry);
+        return NULL;
+        }
+	strcpy (entry->CommandString, commandline);
+	entry->next = NULL;
+    return entry;
+}
+// создает и инициализирует элемент списка аргументов функции
+struct ArgumentMapEntry *CreateAndInitArgumentMapEntry(const char *name)
+{
+	struct ArgumentMapEntry *entry;
+
+    entry = (struct ArgumentMapEntry*) malloc (sizeof(struct ArgumentMapEntry));
+    if (!entry) {
+        return NULL;
+        }
+
+    entry->name = (char*) malloc (strlen (name) + 1);
+    if (!entry->name) {
+        free (entry);
+        return NULL;
+        }
+	entry->realVar = NULL;
+	entry->realNumber = NULL;
+    strcpy(entry->name, name);
+	entry->next = NULL;
+    return entry;
+}
+
+// вставляет список аргументов для текущей функции, которая парсится
+void InsertArgumentMap(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name)
+{
+	struct  ArgumentMapEntry *newEntry;
+    struct	ArgumentMapEntry *tt;
+    newEntry = CreateAndInitArgumentMapEntry (name);
+    if (!newEntry) {
+        return;
+    }
+	if(Obj->args == NULL)
+	{
+		Obj->args = (ArgumentMap *) malloc(sizeof(ArgumentMap));
+		Obj->args->first = NULL;
+	}
+	if(Obj->args->first == NULL)
+	{
+		Obj->args->first = newEntry;
+		return;
+	}
+	tt = Obj->args->first;
+	while(tt->next!= NULL)
+	{
+		tt = tt->next;
+	}
+	tt->next = newEntry;
+    return;
+	
+}
+
+// вставляет список команд(которые будут выполняться при ее вызове) для текущей функции, которая парсится
+void InsertCommandMap(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name)
+{
+	struct CommandMapEntry *newEntry;
+	struct CommandMapEntry *tt;
+    newEntry = CreateAndInitCommandMapEntry (name);
+    if (!newEntry) {
+        return;
+    }
+	if(Obj->coms == NULL)
+	{
+		Obj->coms = (CommandMap *) malloc(sizeof(CommandMap));
+		Obj->coms->first = NULL;
+	}
+	if(Obj->coms->first == NULL)
+	{
+		Obj->coms->first = newEntry;
+		return;
+	}
+	tt = Obj->coms->first;
+	while(tt->next!= NULL)
+	{
+		tt = tt->next;
+	}
+	tt->next = newEntry;
+    return;
+	
 }
 
 void InitStringMap (StringMap *smap) {
@@ -246,6 +407,7 @@ void InitFuncsMap (FunctionMap *fmap) {
     return;
 }
 
+
 FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, CommandContainer *comap, ArgumentContainer *argmap) {
     
 	FunctionMapEntry *entry;
@@ -259,7 +421,7 @@ FunctionMapEntry *CreateAndInitFunctionMapEntry (const char *name, CommandContai
     if (!entry->name) {
         free (entry);
         return NULL;
-        }
+    }
     
 	entry->args = argmap;
 	entry->commands = comap;
@@ -305,6 +467,36 @@ const char * GetStringByKey (StringMap *map, const char *key) {
 
     return NULL;
 }
+// получаем элемент списка переменных по ключу
+StringMapEntry *GetVarByKey (StringMap *map, const char *key) {
+
+	StringMapEntry *entry = map->first;
+
+    while (entry) {
+        if (!strcmp (entry->key, key)) {
+            return entry;
+            }
+        entry = entry->next;
+        }
+
+    return NULL;
+}
+
+// получаем элемент списка функций по ключу
+FunctionMapEntry * GetFunctionByKey (FunctionMap *map, const char *key) {
+
+	FunctionMapEntry *entry = map->first;
+
+    while (entry) {
+		if (!strcmp (entry->name, key)) {
+            return entry;
+            }
+        entry = entry->next;
+    }
+
+    return NULL;
+}
+
 
 // 1 - если количество '(' == количеству ')',
 // 0 - в противном случае
@@ -335,7 +527,7 @@ int ComputeNumberOfBrackets(const char *str)
 }
 
 
-#define MAX_MATCH 10
+// вычисление выражения, содержащего 2 
 const char *ComputeExpressionAndGetResult_s(const char *Num1, char operation,const char *Num2){
 	mpz_t number1;
 	mpz_t number2;
@@ -363,7 +555,7 @@ const char *ComputeExpressionAndGetResult_s(const char *Num1, char operation,con
 
 }
 
-
+// Вычисляет выражение, не содержащее присваивания
 const char *ParseLineNotEqualAndGetResult(const char *line)
 {
 regex_t re;
@@ -490,6 +682,279 @@ const char *ret;
 	return NULL;
 }
 
+void SetCurrentFunctionName(struct CurrentReadingFunctionFieldsStruct *Obj, const char *name)
+{
+	Obj->name = (char *) malloc(strlen(name) + 1);
+	strcpy(Obj->name, name);
+	Obj->name[strlen(name)] = 0;
+
+	return;
+}
+
+void AddCurrentFunctionCommandLine(struct CurrentReadingFunctionFieldsStruct *Obj, const char *funcline)
+{
+	InsertCommandMap(Obj, funcline);
+}
+// разбирает аргументы, устанавливает их в объект функции
+void ParseAndSetCurrentFunctionArguments(struct CurrentReadingFunctionFieldsStruct *Obj, const char *argline)
+{
+	regex_t re;
+	regmatch_t match[MAX_MATCH];
+	int tlen;
+	char *argument, *argstr;
+    memset (match, 0, sizeof(match));
+
+	argstr = (char *) malloc(strlen(argline) + 1);
+	strcpy(argstr, argline);
+	argstr[strlen(argline)] = 0;
+
+	if (!regcomp (&re, "\\s*([a-zA-Z]+[a-zA-Z0-9]*)\\s*", 0)) {
+        while(1){
+			if (!regexec (&re, argstr, MAX_MATCH, match, 0)) {
+					argument = (char*) malloc (match[0].rm_eo - match[0].rm_so + 1);
+					memcpy(argument, argstr + match[0].rm_so, match[0].rm_eo - match[0].rm_so);
+					argument[match[0].rm_eo - match[0].rm_so] = 0;
+					InsertArgumentMap(Obj, argument);
+					free(argument);
+
+					tlen = strlen(argstr);
+					memcpy(argstr, argstr + match[0].rm_eo, tlen - match[0].rm_eo);
+					argstr[tlen - match[0].rm_eo] = 0;
+			}else	
+				break;
+		}
+        regfree (&re);
+		free(argstr);
+    }
+	return;
+}
+
+// возращает количество аргументов функции
+int GetCountOfFunctionArguments(FunctionMapEntry *fentry)
+{
+	int counter;
+	struct ArgumentMapEntry *tt;
+	counter = 0;
+	if(fentry->args == NULL)
+	{
+		return 0;
+	}
+	tt = fentry->args->first;
+	while(tt!= NULL)
+	{
+		tt = tt->next;
+		counter++;
+	}
+    return counter;
+}
+
+// возвращает количество аргументов, передаваемых в функцию
+// при ее вызове
+int GetCountOfExecFuncParams(const char *argline)
+{
+	regex_t re;
+	regmatch_t match[MAX_MATCH];
+	int tlen, counter;
+	char *argument, *argstr;
+    memset (match, 0, sizeof(match));
+	
+	counter = 0;
+	
+	argstr = (char *) malloc(strlen(argline) + 1);
+	strcpy(argstr, argline);
+	argstr[strlen(argline)] = 0;
+
+	if (!regcomp (&re, "\\s*([a-zA-Z0-9]+)\\s*", 0)) {
+        while(1){
+			if (!regexec (&re, argstr, MAX_MATCH, match, 0)) {
+					/*
+					argument = (char*) malloc (match[0].rm_eo - match[0].rm_so + 1);
+					memcpy(argument, argstr + match[0].rm_so, match[0].rm_eo - match[0].rm_so);
+					argument[match[0].rm_eo - match[0].rm_so] = 0;
+					free(argument);
+					*/
+					counter++;
+					tlen = strlen(argstr);
+					memcpy(argstr, argstr + match[0].rm_eo, tlen - match[0].rm_eo);
+					argstr[tlen - match[0].rm_eo] = 0;
+			}else	
+				break;
+		}
+        regfree (&re);
+		free(argstr);
+    }
+	return counter;
+}
+// ищет вхождения заданной подстроки и возвращает их позиции (элементы regmatch_t
+regmatch_t *GetPositionOfEntries(const char *str, const char *templ)
+{
+	regex_t re;
+	regmatch_t *ret_match;
+	int tlen, i;
+	char *modstr;
+	struct ArgumentMapEntry *targ;
+	regmatch_t match[MAX_MATCH];
+
+	memset (match, 0, sizeof(match));
+	
+	modstr = (char *) malloc(strlen(str) + 1);
+	strcpy(modstr, str);
+	modstr[strlen(str)] = 0;
+
+	ret_match = (regmatch_t *) malloc(sizeof(regmatch_t) * MAX_MATCH);
+
+
+	i = 0;
+
+
+		if (!regcomp (&re, templ, 0)) 
+		{
+			// пока находятся совпадения шаблона в строке!
+			while(!regexec(&re, modstr, MAX_MATCH, match, 0))
+			{
+				// защита от того, чтобы встретить название переменной в другом слове!
+				if(match[0].rm_so > 0)
+				{
+					if(isalpha(modstr[match[0].rm_so-1]) || isalpha(modstr[match[0].rm_eo]))
+					{
+						continue;
+					}
+				}else{
+					if(isalpha(modstr[match[0].rm_eo]))
+					{
+						continue;
+					}
+				}
+				// каждый раз получаем длину строки, чтобы копировать нужное количество символов
+				tlen = strlen(modstr);
+				// копируем то, что осталось после совпадения!	
+				memcpy(modstr, modstr + match[0].rm_eo, tlen - match[0].rm_eo);
+				modstr[tlen - match[0].rm_eo] = 0;
+				
+				// записываем совпадения в массив, чтобы потом вернуть
+				ret_match[i] = match[0];
+				// записываем -1 в элементы, в которых не будем
+				if(i < (MAX_MATCH-1))
+				{
+					ret_match[i+1] = match[2];
+				}
+				// записываем абсолютные значения смещений совпадений в строке!
+				if(i > 0){
+					ret_match[i].rm_so += ret_match[i-1].rm_eo;
+					ret_match[i].rm_eo += ret_match[i-1].rm_eo;
+				}
+				i++;
+			}
+		}
+		regfree(&re);
+		return ret_match;
+}
+// подставляет вместо вхождения одного слова подстроку
+char *Insert1SubstrToStr(const char *str, const struct ArgumentMapEntry *targ)
+{
+	regex_t re;
+	regmatch_t match[MAX_MATCH], *matches;
+	int tlen, i;
+	char *templ, *modstr, *substr;
+
+
+		templ = (char*) malloc (strlen(targ->name) + strlen("()") + 1);
+		templ[0] = 0;
+		strcat(templ, "(");
+		strcat(templ, targ->name);
+		strcat(templ, ")");
+
+		matches = GetPositionOfEntries(str, templ);
+		// подсчитали количество вхождений
+		for(i=0;(matches[i].rm_eo != -1) && (i < MAX_MATCH); i++);
+		
+		if(targ->realNumber == NULL && targ->realVar != NULL)
+		{
+			// выделяем память под модифицированную строку!
+			modstr = (char *) malloc(strlen(str) - (i*strlen(targ->name)) + (i*strlen(targ->realVar->key)) + 1);
+			modstr[0] = 0;
+			for(i=0; matches[i].rm_eo != -1; i++)
+			{
+				if(i > 0){
+					substr = (char *) malloc(matches[i].rm_so - matches[i-1].rm_eo + 1); 
+					memcpy(substr, (char *) str + matches[i-1].rm_eo, matches[i].rm_so - matches[i-1].rm_eo);
+					substr[matches[i].rm_so - matches[i-1].rm_eo] = 0;
+				}else
+				{
+					substr = (char *) malloc(matches[i].rm_so + 1); 
+					memcpy(substr, (char *) str, matches[i].rm_so);
+					substr[matches[i].rm_so] = 0; 
+				}
+				strcat(modstr, substr);
+				strcat(modstr, targ->realVar->key);
+				free(substr);
+				if(i < MAX_MATCH && matches[i+1].rm_eo == -1)
+				{
+					substr = (char *) malloc(strlen(str) - matches[i].rm_eo + 1); 
+					memcpy(substr, (char *) str + matches[i].rm_eo, strlen(str) - matches[i].rm_eo);
+					substr[strlen(str) - matches[i].rm_eo] = 0;
+					strcat(modstr, substr);
+					free(substr);
+				}
+			}
+		}
+		else if(targ->realNumber != NULL && targ->realVar == NULL)
+		{
+			// выделяем память под модифицированную строку!
+			modstr = (char *) malloc(strlen(str) - (i*strlen(targ->name)) + (i*strlen(targ->realNumber)) + 1);
+			modstr[0] = 0;
+			for(i=0; matches[i].rm_eo != -1; i++)
+			{
+				if(i > 0){
+					substr = (char *) malloc(matches[i].rm_so - matches[i-1].rm_eo + 1); 
+					memcpy(substr, (char *) str + matches[i-1].rm_eo, matches[i].rm_so - matches[i-1].rm_eo);
+					substr[matches[i].rm_so - matches[i-1].rm_eo] = 0;
+				}else
+				{
+					substr = (char *) malloc(matches[i].rm_so + 1); 
+					memcpy(substr, (char *) str, matches[i].rm_so);
+					substr[matches[i].rm_so] = 0; 
+				}
+				strcat(modstr, substr);
+				strcat(modstr, targ->realNumber);
+				free(substr);
+				if(i < MAX_MATCH && matches[i+1].rm_eo == -1)
+				{
+					substr = (char *) malloc(strlen(str) - matches[i].rm_eo + 1); 
+					memcpy(substr, (char *) str + matches[i].rm_eo, strlen(str) - matches[i].rm_eo);
+					substr[strlen(str) - matches[i].rm_eo] = 0;
+					strcat(modstr, substr);
+					free(substr);
+				}
+			}
+		}
+
+
+	free(templ);
+	free(matches);
+	return modstr;
+}
+// подставляет в строку из определения функции
+char *InsertRealFuncParamsToString(FunctionMapEntry *func, const char *str)
+{
+
+	struct ArgumentMapEntry *targ;
+	int tlen, i;
+	char *modstr, *modstr1;	
+	targ = func->args->first;
+	modstr = (char *) malloc(strlen(str) + 1);
+	strcpy(modstr, str);
+	while(targ != NULL)
+	{
+		modstr1 = Insert1SubstrToStr(modstr, targ);
+		free(modstr);
+		modstr = modstr1;
+		targ = targ->next;
+	}
+	return modstr;
+}
+
+// Разбирает строку и выполняет определенные действия
 void ParseLine (const char *line) {
 
 regex_t re;
@@ -503,24 +968,76 @@ const char *op2Number;
 char operation;
 
     memset (match, 0, sizeof(match));
-	if(FunctionReadingMode)
-	{
-		SetFunctionLine(line);
-	}
-	// распознавание функции с аргументами
-	if (!regcomp (&re, "^\\s*function\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*\\(([a-zA-Z0-9\\s\\,]*)\\)\\s*;*\\s*$", 0)) {
+
+	// распознаем вызов функции
+	if (!regcomp (&re, "^\\s*([a-zA-Z]+[a-zA-Z0-9]*)\\s*\\(([a-zA-Z0-9\\s\\,]*)\\)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
-			FunctionReadingMode = 1;
+			if(line[match[2].rm_so] == '(' || line[match[2].rm_so] == ')')
+			{
+				op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
+
+				memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+				op1[match[1].rm_eo - match[1].rm_so] = 0;
+
+				ExecuteFunctionWithoutParams(&glFuncs, op1);
+			}
+			else
+			{
+				op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
+				op2 = (char*) malloc (match[2].rm_eo - match[2].rm_so + 1);
+
+				memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+				op1[match[1].rm_eo - match[1].rm_so] = 0;
+
+				memcpy(op2, line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
+				op2[match[2].rm_eo - match[2].rm_so] = 0;
+
+				ExecuteFunctionWithParams(&glFuncs, op1, op2);
+			}
+			
+			regfree (&re);
+			return;
 		}
-        regfree (&re);
+		regfree(&re);
     }
+
+
 	// распознавание окончания функции
 	if (!regcomp (&re, "^\\s*end\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
-			FunctionReadingMode = 0;
+			CRFFObj.FunctionReadingMode = 0;
+			InsertFunctionMap(&glFuncs, (&CRFFObj)->name, (&CRFFObj)->coms, (&CRFFObj)->args);
+			InitCRFFObj(&CRFFObj);
+	        regfree (&re);
+			return;
+		}
+		regfree(&re);
+    }
+	// если в режиме записи команд функции, записываем строку и выходим
+	if(CRFFObj.FunctionReadingMode == 1)
+	{
+		AddCurrentFunctionCommandLine(&CRFFObj, line);
+		return;
+	}
+	// распознавание функции с аргументами
+	if (!regcomp(&re, "^\\s*function\\s*([^\\=\\(\\)\\/\\*\\-\\+][a-zA-Z][a-zA-Z0-9]+)\\s*\\(([a-zA-Z0-9\\s\\,]*)\\)\\s*;*\\s*$", 0)) {
+        if (!regexec (&re, line, MAX_MATCH, match, 0)) {
+			CRFFObj.FunctionReadingMode = 1;
+            op1 = (char*) malloc (match[1].rm_eo - match[1].rm_so + 1);
+            op2 = (char*) malloc (match[2].rm_eo - match[2].rm_so + 1);
+
+			memcpy(op1, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+            op1[match[1].rm_eo - match[1].rm_so] = 0;
+
+            memcpy(op2, line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
+            op2[match[2].rm_eo - match[2].rm_so] = 0;
+
+			SetCurrentFunctionName(&CRFFObj, op1);
+			ParseAndSetCurrentFunctionArguments(&CRFFObj, op2);
 		}
         regfree (&re);
     }
+	// распознавание присваивания
 	if (!regcomp (&re, "^\\s*([a-zA-Z][a-zA-Z0-9]+)\\s*=\\s*([a-zA-Z0-9\\s\\/\\*\\-\\+\\s\\(\\)]+|[a-zA-Z][a-zA-Z0-9]+|[0-9]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 
@@ -544,6 +1061,7 @@ char operation;
             }
         regfree (&re);
     }
+	// распознавание выражения без присваивания
 	if (!regcomp (&re, "^\\s*([^\\=][a-zA-Z0-9\\s\\/\\*\\-\\+\\(\\)]+)\\s*;*\\s*$", 0)) {
         if (!regexec (&re, line, MAX_MATCH, match, 0)) {
 			op1Number = ParseLineNotEqualAndGetResult(line);
@@ -555,6 +1073,102 @@ char operation;
     return;
 }
 
+void ExecuteFunctionWithoutParams(FunctionContainer *fCont, const char *funcname)
+{
+	struct CommandMapEntry *tcom;
+	FunctionMapEntry *tfun;
+
+			///////////// выполнение команд
+	tfun = GetFunctionByKey(fCont, funcname);
+	tcom = tfun->commands->first;
+	while(tcom != NULL)
+	{
+		// модифицируем строку!
+		ParseLine(tcom->CommandString);
+
+		tcom = tcom->next;
+	}
+	return;
+}
+
+// Вызывает функцию с параметрами
+void ExecuteFunctionWithParams(FunctionContainer *fCont, const char *funcname, const char *params)
+{
+	regex_t re;
+	regmatch_t match[MAX_MATCH];
+	int tlen;
+	char *argument, *str, *modstr;
+	struct ArgumentMapEntry *targ;
+	struct CommandMapEntry *tcom;
+	FunctionMapEntry *tfun;
+    
+	memset (match, 0, sizeof(match));
+
+	str = (char *) malloc(strlen(params) + 1);
+	strcpy(str, params);
+	str[strlen(params)] = 0;
+	tfun = GetFunctionByKey(fCont, funcname);
+	targ = tfun->args->first;
+	// если в функцию передали верное количество параметров
+	if(GetCountOfExecFuncParams(params) == GetCountOfFunctionArguments(tfun))
+	{
+		if (!regcomp (&re, "([a-zA-Z0-9]+)", 0)) {
+			while(1){
+				if (!regexec (&re, str, MAX_MATCH, match, 0)) {
+					argument = (char*) malloc (match[0].rm_eo - match[0].rm_so + 1);
+					memcpy(argument, str + match[0].rm_so, match[0].rm_eo - match[0].rm_so);
+					argument[match[0].rm_eo - match[0].rm_so] = 0;
+					
+					if(!isdigit(argument[0]))
+					{
+						targ->realVar = GetVarByKey(&glVars, argument);
+					}else
+					{
+						targ->realNumber = (char *) malloc (strlen(argument) + 1);
+						strcpy(targ->realNumber, argument);
+						targ->realNumber[strlen(argument)] = 0;
+					}
+
+					free(argument);
+
+					tlen = strlen(str);
+					memcpy(str, str + match[0].rm_eo, tlen - match[0].rm_eo);
+					str[tlen - match[0].rm_eo] = 0;
+
+					targ = targ->next;
+				}else	
+					break;
+			}
+			regfree (&re);
+			free(str);
+
+			///////////// выполнение команд
+			tcom = tfun->commands->first;
+			while(tcom != NULL)
+			{
+				// модифицируем строку!
+				modstr = InsertRealFuncParamsToString(tfun, tcom->CommandString);
+				ParseLine(modstr);
+
+				tcom = tcom->next;
+			}
+		}
+		
+	}
+	///////// очищаем поля фактических параметров!
+	targ = tfun->args->first;
+	while(targ != NULL)
+	{
+		targ->realVar = NULL;
+		free(targ->realNumber);
+		targ->realNumber = NULL;
+		
+		targ = targ->next;
+	}
+	// теперь выходим!
+	return;
+
+}
 
 
 void ParseFile (const char *fileName) {
@@ -572,21 +1186,3 @@ FILE *fd;
 }
 
 
-int main (int argc, char *argv[], char *envp[]) {
-	InitCRFFObj(&CRFFObj);
-    InitStringMap (&glVars);
-	InitFuncsMap(&glFuncs);
-    ParseLine ("var1 = (250 - 150) * (10-20);");
-    ParseLine ("1000000000000000000000000000000000000000000000000000000000000 / var1;");
-/*
-    if (argc < 2) {
-        printf ("usage: %s filename\n", argv[0]);
-        return 1;
-        }
-
-    ParseFile (argv[1]);
-*/
-	system("pause");
-
-	return 0;
-}
